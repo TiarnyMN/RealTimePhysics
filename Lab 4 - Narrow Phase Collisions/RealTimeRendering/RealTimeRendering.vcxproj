@@ -1,0 +1,127 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{1ED8EDA8-F9A0-441F-A93F-949AD22F66E6}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>RealTimeRendering</RootNamespace>
+    <ProjectName>RealTimePhysicsLab4</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v110</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v110</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\Tiarny\Desktop\RealTimePhysicsLab4\RealTimeRendering\freeglut\include;C:\Users\Tiarny\Desktop\RealTimePhysicsLab4\RealTimeRendering\glew-1.10.0\include;C:\Users\Tiarny\Desktop\RealTimePhysicsLab4\RealTimeRendering\glm;C:\Users\Tiarny\Desktop\RealTimePhysicsLab4\RealTimeRendering\DevIL\include;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysicsLab4\RealTimeRendering\freeglut\include;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysicsLab4\RealTimeRendering\glew-1.10.0\include;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysicsLab4\RealTimeRendering\glm;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysicsLab4\RealTimeRendering\DevIL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>C:\Users\Tiarny\Desktop\RealTimePhysicsLab4\RealTimeRendering\freeglut\lib;C:\Users\Tiarny\Desktop\RealTimePhysicsLab4\RealTimeRendering\glew-1.10.0\lib\Release\Win32;C:\Users\Tiarny\Desktop\RealTimePhysicsLab4\RealTimeRendering\DevIL\lib;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysicsLab4\RealTimeRendering\freeglut\lib;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysicsLab4\RealTimeRendering\glew-1.10.0\lib\Release\Win32;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysicsLab4\RealTimeRendering\DevIL\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>glew32.lib;freeglut.lib;DevIL.lib;ILU.lib;ILUT.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PostBuildEvent>
+      <Command>echo F|xcopy /y "$(SolutionDir)RealTimeRendering\vTexture.shader" "$(OutDir)vTexture.shader"
+echo F|xcopy /y "$(SolutionDir)RealTimeRendering\fTexture.shader" "$(OutDir)fTexture.shader"
+echo F|xcopy /y "$(SolutionDir)RealTimeRendering\vLine.shader" "$(OutDir)vLine.shader"
+echo F|xcopy /y "$(SolutionDir)RealTimeRendering\fLine.shader" "$(OutDir)fLine.shader"</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\Tiarny\Documents\Visual Studio 2012\Projects\RealTimeRendering\RealTimeRendering\freeglut\include;C:\Users\Tiarny\Documents\Visual Studio 2012\Projects\RealTimeRendering\RealTimeRendering\glew-1.10.0\include;C:\Users\Tiarny\Documents\Visual Studio 2012\Projects\RealTimeRendering\RealTimeRendering\glm;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysicsLab4\RealTimeRendering\DevIL\include;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysicsLab4\RealTimeRendering\freeglut\include;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysicsLab4\RealTimeRendering\glew-1.10.0\include;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysicsLab4\RealTimeRendering\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>glew32.lib;freeglut.lib;DevIL.lib;ILU.lib;ILUT.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\Tiarny\Documents\Visual Studio 2012\Projects\RealTimeRendering\RealTimeRendering\freeglut\lib;C:\Users\Tiarny\Documents\Visual Studio 2012\Projects\RealTimeRendering\RealTimeRendering\glew-1.10.0\lib\Release\Win32;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysicsLab4\RealTimeRendering\freeglut\lib;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysicsLab4\RealTimeRendering\glew-1.10.0\lib\Release\Win32;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysicsLab4\RealTimeRendering\DevIL\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+    <PostBuildEvent>
+      <Command>echo F|xcopy /y "$(SolutionDir)RealTimeRendering\vTexture.shader" "$(OutDir)vTexture.shader"
+echo F|xcopy /y "$(SolutionDir)RealTimeRendering\fTexture.shader" "$(OutDir)fTexture.shader"
+echo F|xcopy /y "$(SolutionDir)RealTimeRendering\vLine.shader" "$(OutDir)vLine.shader"
+echo F|xcopy /y "$(SolutionDir)RealTimeRendering\fLine.shader" "$(OutDir)fLine.shader"</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="AxisAlignedBoundingBox.h" />
+    <ClInclude Include="BasicCube.h" />
+    <ClInclude Include="RigidBody.h" />
+    <ClInclude Include="SimpleCamera.h" />
+    <ClInclude Include="shader.h" />
+    <ClInclude Include="shared.h" />
+    <ClInclude Include="Texture.h" />
+    <ClInclude Include="Vertex.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="AxisAlignedBoundingBox.cpp" />
+    <ClCompile Include="BasicCube.cpp" />
+    <ClCompile Include="RigidBody.cpp" />
+    <ClCompile Include="SimpleCamera.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="shader.cpp" />
+    <ClCompile Include="Texture.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="vTexture.shader" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="fLine.shader" />
+    <None Include="fTexture.shader" />
+    <None Include="vLine.shader" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
