@@ -81,12 +81,12 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysics\RealTimePhysics\freeglut\include;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysics\RealTimePhysics\glew-1.10.0\include;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysics\RealTimePhysics\glm;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysics\RealTimePhysics\DevIL\include;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\freeglut\include;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\glew-1.10.0\include;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\glm;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\DevIL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\freeglut\include;C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\glew-1.10.0\include;C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\glm;C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\DevIL\include;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\freeglut\include;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\glew-1.10.0\include;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\glm;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\DevIL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysics\RealTimePhysics\freeglut\lib;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysics\RealTimePhysics\glew-1.10.0\lib\Release\Win32;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysics\RealTimePhysics\DevIL\lib;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\freeglut\lib;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\glew-1.10.0\lib\Release\Win32;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\DevIL\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\freeglut\lib;C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\glew-1.10.0\lib\Release\Win32;C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\DevIL\lib;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\freeglut\lib;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\glew-1.10.0\lib\Release\Win32;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\DevIL\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>glew32.lib;freeglut.lib;DevIL.lib;ILU.lib;ILUT.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
@@ -110,21 +110,25 @@ echo F|xcopy /y "$(SolutionDir)RealTimePhysics\fPlane.shader" "$(OutDir)Shaders\
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysics\RealTimePhysics\freeglut\include;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysics\RealTimePhysics\glew-1.10.0\include;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysics\RealTimePhysics\glm;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysics\RealTimePhysics\DevIL\include;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\freeglut\include;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\glew-1.10.0\include;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\glm;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\DevIL\include;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\VLD\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\freeglut\include;C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\glew-1.10.0\include;C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\glm;C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\DevIL\include;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\freeglut\include;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\glew-1.10.0\include;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\glm;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\DevIL\include;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\VLD\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>glew32.lib;freeglut.lib;DevIL.lib;ILU.lib;ILUT.lib;vld.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysics\RealTimePhysics\freeglut\lib;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysics\RealTimePhysics\glew-1.10.0\lib\Release\Win32;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\RealTimePhysics\RealTimePhysics\DevIL\lib;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\freeglut\lib;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\glew-1.10.0\lib\Release\Win32;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\DevIL\lib;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\VLD\lib\Win64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>glew32.lib;freeglut.lib;DevIL.lib;ILU.lib;ILUT.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\freeglut\lib;C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\glew-1.10.0\lib\Release\Win32;C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\DevIL\lib;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\freeglut\lib;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\glew-1.10.0\lib\Release\Win32;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\DevIL\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
       <Command>echo F|xcopy /y "$(SolutionDir)RealTimePhysics\vTexture.shader" "$(OutDir)Shaders\vTexture.shader"
 echo F|xcopy /y "$(SolutionDir)RealTimePhysics\fTexture.shader" "$(OutDir)Shaders\fTexture.shader"
 echo F|xcopy /y "$(SolutionDir)RealTimePhysics\vLine.shader" "$(OutDir)Shaders\vLine.shader"
-echo F|xcopy /y "$(SolutionDir)RealTimePhysics\fLine.shader" "$(OutDir)Shaders\fLine.shader"</Command>
+echo F|xcopy /y "$(SolutionDir)RealTimePhysics\fLine.shader" "$(OutDir)Shaders\fLine.shader"
+echo F|xcopy /y "$(SolutionDir)RealTimePhysics\vParticle.shader" "$(OutDir)Shaders\vParticle.shader"
+echo F|xcopy /y "$(SolutionDir)RealTimePhysics\fParticle.shader" "$(OutDir)Shaders\fParticle.shader"
+echo F|xcopy /y "$(SolutionDir)RealTimePhysics\vPlane.shader" "$(OutDir)Shaders\vPlane.shader"
+echo F|xcopy /y "$(SolutionDir)RealTimePhysics\fPlane.shader" "$(OutDir)Shaders\fPlane.shader"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

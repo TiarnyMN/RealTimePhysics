@@ -40,8 +40,9 @@ glm::vec2 mousePos;
 glm::vec3 windVector = glm::vec3();
 
 FluidCube* fluidCube;
-int fluidSize = 25;
-float particleSpacing = 2.0f;
+int fluidSize = 50;
+float particleSpacing = 0.5f;
+float particleSize = 5.0f;
 
 //Generates a random float between minVal and maxVal
 float GetRandomValue(float minVal, float maxVal)
@@ -63,6 +64,7 @@ void update(void)
 	particleCamera.Update(elapsedTimeStep);
 
 	//FluidCubeAddDensity(fluidCube, glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 100.0f);
+	FluidCubeAddDensity(fluidCube, glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 5000.0f);
 	FluidCubeStep(fluidCube);
 
 	////Casts a ray from the mouse into the world
@@ -196,7 +198,7 @@ void update(void)
 		//	}
 		//}
 	//}
-
+    
 	glutPostRedisplay();
 }
 
@@ -230,7 +232,10 @@ void display(void)
 	glUniformMatrix4fv(glGetUniformLocation(bID, "camMat"), 1, GL_FALSE, glm::value_ptr(viewMat));
 	glUniformMatrix4fv(glGetUniformLocation(bID, "perMat"), 1, GL_FALSE, glm::value_ptr(projMat));
 
-	glPointSize(5);
+	glEnable (GL_BLEND);
+	glDepthMask (GL_FALSE);
+
+	glPointSize(particleSize);
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 	glBegin(GL_POINTS);
 
@@ -247,6 +252,9 @@ void display(void)
 			}
 
 	glEnd();
+
+	glDepthMask (GL_TRUE);
+	glDisable (GL_BLEND);
 
 	//for(float x = 0.0f; x < 100.0f; x+=1.0f)
 	//{
@@ -397,18 +405,24 @@ void initialise(void)
 	leftPlane->GenerateVertices(glm::vec3(-25.0f, -100.0f, 0.0f), glm::vec3(-0.5f, 1.0f, 0.0f));
 	planes.push_back(leftPlane);
 
-	fluidCube = FluidCubeCreate(fluidSize, 0.1f, 100.0f, 0.001f);
-	FluidCubeAddDensity(fluidCube, glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 10000.0f);
+	fluidCube = FluidCubeCreate(fluidSize, 0.1f, 100.0f, 0.0001f);
+	FluidCubeAddDensity(fluidCube, glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 5000.0f);
 
 	for(int x = 0; x < fluidSize; x++)
 		for(int y = 0; y < fluidSize; y++)
 			for(int z = 0; z < fluidSize; z++)
-				FluidCubeAddVelocity(fluidCube, x, y, z, 0.0f, -0.25f, 0.0f);
+				FluidCubeAddVelocity(fluidCube, x, y, z, 0.0f, -100.0f, 0.0f);
 }
 
 //Toggle between pushing and pulling forces, or spawn new particles.
 void HandleMouseClick(int button, int state, int x, int y)
 {
+	if(button == GLUT_LEFT_BUTTON)
+	{
+		if(state == GLUT_DOWN)
+			FluidCubeAddDensity(fluidCube, glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 5000.0f);
+	}
+
 	//if(button == GLUT_LEFT_BUTTON && curSelectedForce != NULL)
 	//{
 	//	if(state == GLUT_DOWN)
