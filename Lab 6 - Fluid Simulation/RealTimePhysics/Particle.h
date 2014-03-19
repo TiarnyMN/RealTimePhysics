@@ -5,8 +5,8 @@ class Particle
 {
 public:
 	Particle(void);
-	glm::vec3 position, velocity;
-	float mass, age;
+	glm::vec3 position, velocity, force, color, forcePressure, acceleration, oldVelocity;
+	float mass, density, pressure, forceViscosity;
 
 public:
 	void SetPosition(GLfloat x, GLfloat y, GLfloat z);

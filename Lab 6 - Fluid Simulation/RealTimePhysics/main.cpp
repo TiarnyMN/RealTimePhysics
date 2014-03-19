@@ -1,25 +1,14 @@
 #include "shared.h"
-#include "Fluid.h"
-#include "vector.h"
-#include "vector3d.h"
-
-using namespace Fluid;
 
 int prevFrameTimeSinceStart = 0;
 GLfloat elapsedTimeStep = 0.0f;
-
-enum DemoMode
-{
-	Celestial,
-	Snow,
-	Plume
-};
 
 vector<Particle*> particles;
 vector<Plane*> planes;
 
 Shader particleShader;
 Shader planeShader;
+Shader sphereShader;
 
 Camera particleCamera;
 
@@ -35,32 +24,41 @@ int recycledParticles = 0;
 
 const float particleLifetime = 10.0f;
 bool particlesShouldAge = false;
-
-DemoMode currentDemoMode = DemoMode::Celestial;
-
 stringstream ss;
 glm::vec2 mousePos;
 
 glm::vec3 windVector = glm::vec3();
 
-//FluidCube* fluidCube;
-int fluidSize = 8;
-float particleSpacing = 1.0f;
+GLUquadricObj* refSphere;
+
+int particleCount = 5;
 float particleSize = 1.0f;
-
-//Fluid *fluid;
-bool takeStep = false;
-
-Vector3D size(100.0f, 100.0f, 40.0f);
-VecInt3D cells(fluidSize, fluidSize, fluidSize);
-Solver solver(size, cells);
-Sphere source(Vector3D(4.0f, 4.0f, 4.0f), 5.0f);
+float particleMass = 1.0f;
+float kernelSize;
 
 //Generates a random float between minVal and maxVal
 float GetRandomValue(float minVal, float maxVal)
 {
 	float rndVal = ((float)rand()) / (float)RAND_MAX;
 	return (rndVal * (maxVal - minVal)) + minVal;
+}
+
+float CalculateKernal(Particle* curParticle, Particle* compareParticle)
+{
+	float distBetweenParticles = glm::distance(curParticle->position, compareParticle->position);
+
+	if(distBetweenParticles > kernelSize)
+		return 0.0f;
+
+	return (315.0f / (64.0f * glm::pi<float>() * glm::pow(kernelSize, 9.0f))) * glm::pow(glm::pow(kernelSize, 2.0f) - glm::pow(distBetweenParticles, 2.0f), 3.0f);
+}
+
+glm::vec3 CalculatePressureKernal(glm::vec3 r, float h)
+{
+	if(glm::length(r) > h)
+		return glm::vec3();
+
+	return (-45.0f  / (glm::pi<float>() * glm::pow(h, 6.0f))) * ((r / glm::length(r)) * glm::pow((h - glm::length(r)), 2.0f));
 }
 
 void update(void)
@@ -74,98 +72,65 @@ void update(void)
 
 	particleCamera.Update(elapsedTimeStep);
 
-	solver.DoStep(elapsedTimeStep);
+	//https://www8.cs.umu.se/kurser/5DV058/VT10/lectures/Lecture8.pdf
+	//http://image.diku.dk/projects/media/kelager.06.pdf
 
-	//fluid->addNoise(glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 1000.0f);
-	//if(takeStep)
-	//{
-	//	takeStep = false;
-		//fluid->step();
-	//}
+	//5.6.2 Compute Density and Pressure
+	for(int i = 0; i < maxParticles; i++)
+	{
+		Particle* curParticle = particles[i];
+		curParticle->density = 0.0f;
 
-	//FluidCubeAddDensity(fluidCube, glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 100.0f);
-	//FluidCubeAddDensity(fluidCube, glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 5000.0f);
-	//FluidCubeStep(fluidCube);
+		for(int j = 0; j < maxParticles; j++)
+		{
+			Particle* compareParticle = particles[j];
+			curParticle->density += curParticle->mass * CalculateKernal(curParticle, compareParticle);	//Compute mass-density, p.
+		}
 
-	////Casts a ray from the mouse into the world
-	//glm::vec3 rayNDS = glm::vec3();
-	//rayNDS.x = mousePos.x / glutGet(GLUT_WINDOW_WIDTH);
-	//rayNDS.x = -1.0f + (rayNDS.x * 2.0f);
-	// 
-	//rayNDS.y = mousePos.y / glutGet(GLUT_WINDOW_HEIGHT);
-	//rayNDS.y = 1.0f - (rayNDS.y * 2.0f);
+		const float stiffnessConstant = 3.0f;		//gas stiffness constant, k.
+		curParticle->pressure = stiffnessConstant * curParticle->density;	//Compute pressure p(i).
+	}
 
-	//rayNDS.z = 1.0f;
+	//5.6.2 Compute Density and Pressure
+	for(int i = 0; i < maxParticles; i++)
+	{
+		Particle* curParticle = particles[i];
+		curParticle->forcePressure = glm::vec3();
 
-	//glm::vec4 rayClip = glm::vec4(rayNDS.x, rayNDS.y, -1.0f, 1.0f);
-	//glm::vec4 rayEye = glm::inverse(particleCamera.GetProjMatrix()) * rayClip;
-	//rayEye = glm::vec4(rayEye.x, rayEye.y, -1.0f, 0.0f);
+		for(int j = 0; j < maxParticles; j++)
+		{
+			if(i == j)
+				continue;
 
-	//rayEye = glm::inverse(particleCamera.GetViewMatrix()) * rayEye;
+			//Calculating the pressure gradient.
+			Particle* compareParticle = particles[j];
+			float first = (curParticle->density / glm::pow(curParticle->density, 2.0f)) +  (compareParticle->density / glm::pow(compareParticle->density, 2.0f));
+			curParticle->forcePressure += first * compareParticle->mass * CalculatePressureKernal(curParticle->position - compareParticle->position, kernelSize);
+		}
+	}
 
-	//glm::vec3 rayWorld = glm::vec3(rayEye.x, rayEye.y, rayEye.z);
-	//rayWorld = glm::normalize(rayWorld);	//A ray from the mouse position, through the camera, and into the world.
+	for(int i = 0; i < maxParticles; i++)
+	{
+		Particle* curParticle = particles[i];
+		curParticle->forcePressure += glm::vec3(0.0f, -9.81f, 0.0f);
 
-	////Finds out if the mouse is hovering over a plane and, if so, which one (if overlapping two we take the closest)
-	//int planeID = -1;
-	//float shortestDistance = std::numeric_limits<float>::max();
-	//float distanceAlongRay = 0.0f;
+		curParticle->acceleration = curParticle->forcePressure / curParticle->density;
+	}
 
-	////Find out if the ray is intersecting any of the planes, and if it hits multiple find the closest one.
-	//for(int i = 0; i < planes.size(); i++)
-	//{
-	//	distanceAlongRay = glm::dot((planes[i]->position - particleCamera.position), planes[i]->normal) / glm::dot(rayWorld, planes[i]->normal);
+	float timeStep = 0.01f;
+	for(int i = 0; i < maxParticles; i++)
+	{
+		Particle* curParticle = particles[i];
+		glm::vec3 newVel = curParticle->oldVelocity + timeStep * curParticle->acceleration;
+		//glm::vec3 halfVel = (curParticle->oldVelocity + newVel) / 2.0f;
 
-	//	if(distanceAlongRay > 0 && distanceAlongRay < shortestDistance)
-	//	{
-	//		shortestDistance = distanceAlongRay;
-	//		planeID = i;
-	//	}
-	//}
+		glm::vec3 oldPos = curParticle->position;
+		curParticle->position = curParticle->position + newVel * timeStep;
 
-	////If particles should age, then age them. If they have "died", then recycle them!
-	//if(particlesShouldAge)
-	//{
-	//	for(int i = 0; i < particles.size(); i++)
-	//	{
-	//		particles[i]->age += elapsedTimeStep;
+		curParticle->velocity = newVel + (timeStep / 2.0f) * curParticle->acceleration;
+		curParticle->oldVelocity = newVel;
+	}	
 
-	//		if(particles[i]->age >= particleLifetime)
-	//		{
-	//			++recycledParticles;
-	//			particles[i]->SetPosition(GetRandomValue(-50.0f, 50.0f), GetRandomValue(0.0f, 100.0f), GetRandomValue(-50.0f, 50.0f));
-	//			particles[i]->SetVelocity(windVector.x + (-10.0f, 10.0f), windVector.y + 0.0f, windVector.z + (-10.0f, 10.0f));
-	//			particles[i]->age = GetRandomValue(-30.0f, 0.0f);
-	//		}
-	//	}
-	//}
-
-	////If we are hovering over a plane, update the force position.
-	//if(planeID != -1)
-	//{
-	//	glm::vec3 pointAtPlane = particleCamera.position + (rayWorld * shortestDistance);
-	//	if(curSelectedForce != NULL)
-	//	{
-	//		curSelectedForce->position = pointAtPlane + glm::vec3(0.0f, 5.0f, 0.0f);
-
-	//		if(curSelectedForce->position.y < -50.0f)
-	//			curSelectedForce->position.y = -50.0f;
-	//	}
-
-	//	//If active, then add some more particles to the scene!
-	//	if(spawningParticles)
-	//	{
-	//		for(int i = 0; i < 5; i++)
-	//		{
-	//			particles[oldestParticle]->SetPosition(pointAtPlane.x, pointAtPlane.y + 15.0f, pointAtPlane.z);
-	//			particles[oldestParticle]->SetVelocity(GetRandomValue(-20.0f, 20.0f), 0.0f, GetRandomValue(-20.0f, 20.0f));	//Give them a random horizontal velocity so they appear to shoot out of the mouse cursor.
-	//			particles[oldestParticle]->age = 0.0f;
-
-	//			oldestParticle = (oldestParticle + 1) % particles.size();
-	//			++recycledParticles;
-	//		}
-	//	}
-	//}
 
 	////Mid Point Method - Update once, but using the value as it was in the middle.
 	//float midPointTimeStep = elapsedTimeStep / 2;
@@ -192,31 +157,9 @@ void update(void)
 	//			vT *= 0.75f;	//"Frictional" force
 
 	//			particles[i]->velocity = vT - elasticity * vN;
-
-	//			if(currentDemoMode == DemoMode::Snow)
-	//				particles[i]->velocity = glm::vec3(0.0f, 0.0f, 0.0f);
 	//		}
 	//	}		
 	//	particles[i]->velocity -= particles[i]->velocity * dampeningStrength * midPointTimeStep;	//Damp the value slightly.
-
-		////If the scene has active forces, then apply the forces to the particles to pull / push them about!
-		//if(currentDemoMode == DemoMode::Celestial || currentDemoMode == DemoMode::Plume)
-		//{
-		//	for(int j = 0; j < forces.size(); j++)
-		//	{
-		//		if(forces[j]->forceEnabled)
-		//		{
-		//			glm::vec3 distFromForce = forces[j]->position - particles[i]->position;
-		//			float distSquared = glm::dot(distFromForce, distFromForce);
-
-		//			if(forces[j]->forcePushing)
-		//				distSquared *= -1;
-
-		//			float relativeForceStrength = 1 / distSquared;
-		//			particles[i]->velocity += (distFromForce * relativeForceStrength * forces[j]->strength * midPointTimeStep); 
-		//		}
-		//	}
-		//}
 	//}
     
 	glutPostRedisplay();
@@ -230,76 +173,72 @@ void display(void)
 	glm::mat4 viewMat = particleCamera.GetViewMatrix();
 	glm::mat4 projMat = particleCamera.GetProjMatrix();
 
-	const Fluid::Grid<float>* grid = solver.GetDensity();
-
 	//Draw the planes.
-	//int aID = planeShader.GetShaderID();
-	//glUseProgram(aID);
+	int aID = planeShader.GetShaderID();
+	glUseProgram(aID);
 
-	//glUniformMatrix4fv(glGetUniformLocation(aID, "camMat"), 1, GL_FALSE, glm::value_ptr(viewMat));
-	//glUniformMatrix4fv(glGetUniformLocation(aID, "perMat"), 1, GL_FALSE, glm::value_ptr(projMat));
+	glUniformMatrix4fv(glGetUniformLocation(aID, "camMat"), 1, GL_FALSE, glm::value_ptr(viewMat));
+	glUniformMatrix4fv(glGetUniformLocation(aID, "perMat"), 1, GL_FALSE, glm::value_ptr(projMat));
 
-	//glBegin(GL_QUADS);
-	//glColor4f(0.4f, 0.4f, 0.4f, 1.0f);
+	glBegin(GL_QUADS);
+	glColor4f(0.4f, 0.4f, 0.4f, 1.0f);
 
-	//for(int i = 0; i < planes.size(); i++)
-	//	planes[i]->Render();
+	for(int i = 0; i < planes.size(); i++)
+		planes[i]->Render();
 
-	//glEnd();
+	glEnd();
 
 	//Draw the particles.
-	int bID = particleShader.GetShaderID();
-	glUseProgram(bID);
+	//int bID = particleShader.GetShaderID();
+	//glUseProgram(bID);
 
-	glUniformMatrix4fv(glGetUniformLocation(bID, "camMat"), 1, GL_FALSE, glm::value_ptr(viewMat));
-	glUniformMatrix4fv(glGetUniformLocation(bID, "perMat"), 1, GL_FALSE, glm::value_ptr(projMat));
+	//glUniformMatrix4fv(glGetUniformLocation(bID, "camMat"), 1, GL_FALSE, glm::value_ptr(viewMat));
+	//glUniformMatrix4fv(glGetUniformLocation(bID, "perMat"), 1, GL_FALSE, glm::value_ptr(projMat));
 
-	glEnable (GL_BLEND);
-	glDepthMask (GL_FALSE);
+	//glEnable (GL_BLEND);
+	//glDepthMask (GL_FALSE);
 
-	glPointSize(particleSize);
-	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-	glBegin(GL_POINTS);
+	////glPointSize(particleSize);
+	////glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	////glBegin(GL_POINTS);
 
-	for(int x = 0; x < fluidSize; x++)
-		for(int y = 0; y < fluidSize; y++)
-			for(int z = 0; z < fluidSize; z++)
-			{
-				float density = grid->GetValue(VecInt3D(x, y, z));
-				/*if(density > 0.0f)
-					cout << "( " << x << " " << y << " " << z << ") - " << density << endl;*/
+	////for(int x = 0; x < fluidSize; x++)
+	////	for(int y = 0; y < fluidSize; y++)
+	////		for(int z = 0; z < fluidSize; z++)
+	////		{
+	////			float density = grid->GetValue(VecInt3D(x, y, z));
+	////			/*if(density > 0.0f)
+	////				cout << "( " << x << " " << y << " " << z << ") - " << density << endl;*/
 
-				glColor4f(density, 0.0f, 1 - density, 1.0f);//, 1.0f, 1.0f, 1.0f);
-				glVertex3f(x * particleSpacing - (fluidSize * particleSpacing / 2), y * particleSpacing - (fluidSize * particleSpacing / 2), z * particleSpacing - (fluidSize * particleSpacing / 2));
-			}
+	////			glColor4f(density, 0.0f, 1 - density, 1.0f);//, 1.0f, 1.0f, 1.0f);
+	////			glVertex3f(x * particleSpacing - (fluidSize * particleSpacing / 2), y * particleSpacing - (fluidSize * particleSpacing / 2), z * particleSpacing - (fluidSize * particleSpacing / 2));
+	////		}
 
-	glEnd();
+	////glEnd();
 
-	glPointSize(5.0f);
-	glColor4f(0.0f, 1.0f, 0.0f, 1.0f);
+	//glPointSize(5.0f);
+	//glColor4f(0.0f, 1.0f, 0.0f, 1.0f);
 
-	glBegin(GL_POINTS);
-	const Vector3D sourceVec = source.GetCenter();
-	glVertex3f(sourceVec(0), sourceVec(1), sourceVec(2));
-	glEnd();
+	int shaderID = sphereShader.GetShaderID();
+	glUseProgram(shaderID);
+//
+//	uniform mat4 mTransform, mView, mProjection;
+//
+//out vec2 oTexUV;
+//out vec3 oVertexPos, oNormDir;
 
-	glDepthMask (GL_TRUE);
-	glDisable (GL_BLEND);
+	glm::mat4 finalTransform;
+	int transformLoc = glGetUniformLocation(shaderID, "mTransform");
 
-	//for(float x = 0.0f; x < 100.0f; x+=1.0f)
-	//{
-	//	for(float y = 0.0f; y < 100.0f; y+=1.0f)
-	//	{
-	//		for(float z = 0.0f; z < 100.0f; z+= 1.0f)
-	//		{
-	//			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-	//			glm::vec3 pos = particles[x]->GetPosition();
-	//			glVertex3f(pos.x, pos.y, pos.z);
-	//		}
-	//	}
-	//}
+	glUniformMatrix4fv(glGetUniformLocation(shaderID, "mView"), 1, GL_FALSE, glm::value_ptr(viewMat));
+	glUniformMatrix4fv(glGetUniformLocation(shaderID, "mProjection"), 1, GL_FALSE, glm::value_ptr(projMat));
 
-	
+	for(int i = 0; i < particles.size(); i++)
+	{
+		finalTransform = glm::translate(particles[i]->GetPosition());
+		glUniformMatrix4fv(transformLoc, 1, GL_FALSE, &finalTransform[0][0]);
+		gluSphere(refSphere, particleSize, 10, 10);
+	}
 
 	////Draw the point at which the forces are acting, if in the right mode, as white squares.
 	//if(currentDemoMode == DemoMode::Celestial || currentDemoMode == DemoMode::Plume)
@@ -414,34 +353,45 @@ void initialise(void)
 	prevFrameTimeSinceStart = glutGet(GLUT_ELAPSED_TIME);
 	
 	particleShader = Shader("vParticle.shader", "fParticle.shader");
+	sphereShader = Shader("vSphere.shader", "fSphere.shader");
 	planeShader = Shader("vPlane.shader", "fPlane.shader");
 
-	particles.reserve(maxParticles);
-	for(int i = 0; i < maxParticles; i++)
-	{
-		Particle* particle = new Particle();
-		particle->SetPosition(GetRandomValue(-50.0f, 50.0f), GetRandomValue(0.0f, 100.0f), GetRandomValue(-50.0f, 50.0f));
-		particle->SetVelocity(0.0f, 0.0f, 0.0f);
-		particles.push_back(particle);
-	}
+	maxParticles = particleCount * particleCount * particleCount;
+	particles.reserve(particleCount * particleCount * particleCount);
+
+	for(int x = 0; x < particleCount; x++)
+		for(int y = 0; y < particleCount; y++)
+			for(int z = 0; z < particleCount; z++)
+			{
+				Particle* particle = new Particle();
+				particle->SetPosition(x * particleSize, y * particleSize, z * particleSize);
+				particle->SetVelocity(0.0f, 0.0f, 0.0f);
+				particles.push_back(particle);
+			}
 
 	Plane* flatPlane = new Plane();
-	flatPlane->GenerateVertices(glm::vec3(0.0f, -75.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	flatPlane->GenerateVertices(glm::vec3(0.0f, -20.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	planes.push_back(flatPlane);
 
-	Plane* rightPlane = new Plane();
-	rightPlane->GenerateVertices(glm::vec3(25.0f, 0.0f, 0.0f), glm::vec3(0.5f, 1.0f, 0.0f));
-	planes.push_back(rightPlane);
+	//Plane* rightPlane = new Plane();
+	//rightPlane->GenerateVertices(glm::vec3(10.0f, -100.0f, 0.0f), glm::vec3(-1.0f, 0.0f, 0.0f));
+	//planes.push_back(rightPlane);
 
-	Plane* leftPlane = new Plane();
-	leftPlane->GenerateVertices(glm::vec3(-25.0f, -100.0f, 0.0f), glm::vec3(-0.5f, 1.0f, 0.0f));
-	planes.push_back(leftPlane);
+	//Plane* leftPlane = new Plane();
+	//leftPlane->GenerateVertices(glm::vec3(-1.00f, -100.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	//planes.push_back(leftPlane);
+
+	refSphere = gluNewQuadric();
+	gluQuadricTexture(refSphere, TRUE);
+	gluQuadricNormals(refSphere, TRUE);
+
+	kernelSize =  glm::pow((3 * glm::pow((float)particleCount, 3.0f) * 20) / (5 * glm::pi<float>() * glm::pow((float)particleCount, 3.0f)), 1.0f/3.0f);
 	
-	source.SetSource(5.0f);
-	source.SetForce(Vector3D(0.0f, 0.0f, 0.0f));
-	source.Init(solver);
+	//source.SetSource(5.0f);
+	//source.SetForce(Vector3D(0.0f, 0.0f, 0.0f));
+	//source.Init(solver);
 
-	solver.SetObject(&source, true);
+	//solver.SetObject(&source, true);
 
 	//fluidCube = FluidCubeCreate(fluidSize, 0.1f, 100.0f, 0.0001f);
 	//FluidCubeAddDensity(fluidCube, glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 5000.0f);
@@ -492,62 +442,62 @@ void HandleMouseClick(int button, int state, int x, int y)
 	//}
 }
 
-void SwitchDemoMode(DemoMode demoMode)
-{
-	//if(demoMode == DemoMode::Plume)
-	//	elasticity = 0.1f;
-	//else
-	//	elasticity = 0.8f;
-
-	////Set up the particles for snow fall.
-	//if(demoMode == DemoMode::Snow)
-	//{
-	//	particleCamera.position = glm::vec3(0.0f, -60.0f, 100.0f);
-	//	particleCamera.forwardVec = glm::normalize(particleCamera.target - particleCamera.position);
-	//	particlesShouldAge = true;
-
-	//	for(int i = 0; i < maxParticles; i++)
-	//	{
-	//		particles[i]->SetPosition(GetRandomValue(-100.0f, 100.0f), GetRandomValue(0.0f, 100.0f), GetRandomValue(-100.0f, 100.0f));
-	//		particles[i]->SetVelocity(GetRandomValue(-10.0f, 10.0f), 0.0f, 0.0f);
-	//		particles[i]->age = GetRandomValue(-30.0f, 0.0f);
-	//	}
-	//}
-	//else
-	//{
-	//	//Set the scene up for plume mode.
-	//	if(demoMode == DemoMode::Plume)
-	//	{
-	//		particleCamera.position = glm::vec3(0.0f, -50.0f, 100.0f);
-	//		particleCamera.forwardVec = glm::normalize(particleCamera.target - particleCamera.position);
-	//		particlesShouldAge = false;
-
-	//		for(int i = 0; i < forces.size(); i++)
-	//			forces[i]->forceEnabled = false;
-
-	//		curSelectedForce = forces[0];
-	//	}
-	//	else
-	//	{
-	//		particleCamera.position = glm::vec3(0.0f, 0.0f, 100.0f);
-	//		particleCamera.forwardVec = glm::normalize(particleCamera.target - particleCamera.position);
-	//		particlesShouldAge = true;
-
-	//		for(int i = 0; i < forces.size(); i++)
-	//			forces[i]->forceEnabled = true;
-
-	//		curSelectedForce = NULL;
-	//	}
-
-	//	//Either way, we want to randomise their spawn position.
-	//	for(int i = 0; i < maxParticles; i++)
-	//	{
-	//		particles[i]->SetPosition(GetRandomValue(-50.0f, 50.0f), GetRandomValue(0.0f, 100.0f), GetRandomValue(-50.0f, 50.0f));
-	//		particles[i]->SetVelocity(0.0f, 0.0f, 0.0f);
-	//		particles[i]->age = GetRandomValue(-30.0f, 0.0f);
-	//	}
-	//}
-}
+//void SwitchDemoMode(DemoMode demoMode)
+//{
+//	//if(demoMode == DemoMode::Plume)
+//	//	elasticity = 0.1f;
+//	//else
+//	//	elasticity = 0.8f;
+//
+//	////Set up the particles for snow fall.
+//	//if(demoMode == DemoMode::Snow)
+//	//{
+//	//	particleCamera.position = glm::vec3(0.0f, -60.0f, 100.0f);
+//	//	particleCamera.forwardVec = glm::normalize(particleCamera.target - particleCamera.position);
+//	//	particlesShouldAge = true;
+//
+//	//	for(int i = 0; i < maxParticles; i++)
+//	//	{
+//	//		particles[i]->SetPosition(GetRandomValue(-100.0f, 100.0f), GetRandomValue(0.0f, 100.0f), GetRandomValue(-100.0f, 100.0f));
+//	//		particles[i]->SetVelocity(GetRandomValue(-10.0f, 10.0f), 0.0f, 0.0f);
+//	//		particles[i]->age = GetRandomValue(-30.0f, 0.0f);
+//	//	}
+//	//}
+//	//else
+//	//{
+//	//	//Set the scene up for plume mode.
+//	//	if(demoMode == DemoMode::Plume)
+//	//	{
+//	//		particleCamera.position = glm::vec3(0.0f, -50.0f, 100.0f);
+//	//		particleCamera.forwardVec = glm::normalize(particleCamera.target - particleCamera.position);
+//	//		particlesShouldAge = false;
+//
+//	//		for(int i = 0; i < forces.size(); i++)
+//	//			forces[i]->forceEnabled = false;
+//
+//	//		curSelectedForce = forces[0];
+//	//	}
+//	//	else
+//	//	{
+//	//		particleCamera.position = glm::vec3(0.0f, 0.0f, 100.0f);
+//	//		particleCamera.forwardVec = glm::normalize(particleCamera.target - particleCamera.position);
+//	//		particlesShouldAge = true;
+//
+//	//		for(int i = 0; i < forces.size(); i++)
+//	//			forces[i]->forceEnabled = true;
+//
+//	//		curSelectedForce = NULL;
+//	//	}
+//
+//	//	//Either way, we want to randomise their spawn position.
+//	//	for(int i = 0; i < maxParticles; i++)
+//	//	{
+//	//		particles[i]->SetPosition(GetRandomValue(-50.0f, 50.0f), GetRandomValue(0.0f, 100.0f), GetRandomValue(-50.0f, 50.0f));
+//	//		particles[i]->SetVelocity(0.0f, 0.0f, 0.0f);
+//	//		particles[i]->age = GetRandomValue(-30.0f, 0.0f);
+//	//	}
+//	//}
+//}
 
 void HandleRegularInput(unsigned char key, int x, int y)
 {

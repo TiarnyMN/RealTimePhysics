@@ -3,7 +3,7 @@
 Particle::Particle(void)
 {
 	mass = 1.0f;
-	age = 0.0f;
+	velocity = glm::vec3();
 }
 
 void Particle::SetPosition(GLfloat x, GLfloat y, GLfloat z)

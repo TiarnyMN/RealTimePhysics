@@ -11,42 +11,32 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="config.h" />
-    <ClInclude Include="Fluid.h" />
-    <ClInclude Include="grid.h" />
-    <ClInclude Include="matrix.h" />
-    <ClInclude Include="Object.h" />
     <ClInclude Include="Particle.h" />
     <ClInclude Include="Plane.h" />
     <ClInclude Include="shader.h" />
     <ClInclude Include="shared.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="Texture.h" />
-    <ClInclude Include="vecint3d.h" />
-    <ClInclude Include="vector.h" />
-    <ClInclude Include="vector3d.h" />
     <ClInclude Include="Vertex.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Fluid.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Object.cpp" />
     <ClCompile Include="Particle.cpp" />
     <ClCompile Include="Plane.cpp" />
     <ClCompile Include="shader.cpp" />
     <ClCompile Include="camera.cpp" />
     <ClCompile Include="Texture.cpp" />
-    <ClCompile Include="vecint3d.cpp" />
-    <ClCompile Include="vector3d.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="fLine.shader" />
+    <None Include="fSphere.shader" />
     <None Include="fTexture.shader" />
     <None Include="fParticle.shader" />
     <None Include="fPlane.shader" />
     <None Include="vLine.shader" />
     <None Include="vParticle.shader" />
     <None Include="vPlane.shader" />
+    <None Include="vSphere.shader" />
     <None Include="vTexture.shader" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -108,7 +98,9 @@ echo F|xcopy /y "$(SolutionDir)RealTimePhysics\fLine.shader" "$(OutDir)Shaders\f
 echo F|xcopy /y "$(SolutionDir)RealTimePhysics\vParticle.shader" "$(OutDir)Shaders\vParticle.shader"
 echo F|xcopy /y "$(SolutionDir)RealTimePhysics\fParticle.shader" "$(OutDir)Shaders\fParticle.shader"
 echo F|xcopy /y "$(SolutionDir)RealTimePhysics\vPlane.shader" "$(OutDir)Shaders\vPlane.shader"
-echo F|xcopy /y "$(SolutionDir)RealTimePhysics\fPlane.shader" "$(OutDir)Shaders\fPlane.shader"</Command>
+echo F|xcopy /y "$(SolutionDir)RealTimePhysics\fPlane.shader" "$(OutDir)Shaders\fPlane.shader"
+echo F|xcopy /y "$(SolutionDir)RealTimePhysics\vSphere.shader" "$(OutDir)Shaders\vSphere.shader"
+echo F|xcopy /y "$(SolutionDir)RealTimePhysics\fSphere.shader" "$(OutDir)Shaders\fSphere.shader"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -139,7 +131,9 @@ echo F|xcopy /y "$(SolutionDir)RealTimePhysics\fLine.shader" "$(OutDir)Shaders\f
 echo F|xcopy /y "$(SolutionDir)RealTimePhysics\vParticle.shader" "$(OutDir)Shaders\vParticle.shader"
 echo F|xcopy /y "$(SolutionDir)RealTimePhysics\fParticle.shader" "$(OutDir)Shaders\fParticle.shader"
 echo F|xcopy /y "$(SolutionDir)RealTimePhysics\vPlane.shader" "$(OutDir)Shaders\vPlane.shader"
-echo F|xcopy /y "$(SolutionDir)RealTimePhysics\fPlane.shader" "$(OutDir)Shaders\fPlane.shader"</Command>
+echo F|xcopy /y "$(SolutionDir)RealTimePhysics\fPlane.shader" "$(OutDir)Shaders\fPlane.shader"
+echo F|xcopy /y "$(SolutionDir)RealTimePhysics\vSphere.shader" "$(OutDir)Shaders\vSphere.shader"
+echo F|xcopy /y "$(SolutionDir)RealTimePhysics\fSphere.shader" "$(OutDir)Shaders\fSphere.shader"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
