@@ -1,5 +1,9 @@
 #include "shared.h"
 #include "Fluid.h"
+#include "vector.h"
+#include "vector3d.h"
+
+using namespace Fluid;
 
 int prevFrameTimeSinceStart = 0;
 GLfloat elapsedTimeStep = 0.0f;
@@ -40,12 +44,17 @@ glm::vec2 mousePos;
 glm::vec3 windVector = glm::vec3();
 
 //FluidCube* fluidCube;
-int fluidSize = 16;
-float particleSpacing = 2.0f;
+int fluidSize = 8;
+float particleSpacing = 1.0f;
 float particleSize = 1.0f;
 
-Fluid *fluid;
+//Fluid *fluid;
 bool takeStep = false;
+
+Vector3D size(100.0f, 100.0f, 40.0f);
+VecInt3D cells(fluidSize, fluidSize, fluidSize);
+Solver solver(size, cells);
+Sphere source(Vector3D(4.0f, 4.0f, 4.0f), 5.0f);
 
 //Generates a random float between minVal and maxVal
 float GetRandomValue(float minVal, float maxVal)
@@ -65,11 +74,13 @@ void update(void)
 
 	particleCamera.Update(elapsedTimeStep);
 
-	fluid->addNoise(glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 1000.0f);
+	solver.DoStep(elapsedTimeStep);
+
+	//fluid->addNoise(glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 1000.0f);
 	//if(takeStep)
 	//{
 	//	takeStep = false;
-		fluid->step();
+		//fluid->step();
 	//}
 
 	//FluidCubeAddDensity(fluidCube, glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 100.0f);
@@ -219,6 +230,8 @@ void display(void)
 	glm::mat4 viewMat = particleCamera.GetViewMatrix();
 	glm::mat4 projMat = particleCamera.GetProjMatrix();
 
+	const Fluid::Grid<float>* grid = solver.GetDensity();
+
 	//Draw the planes.
 	//int aID = planeShader.GetShaderID();
 	//glUseProgram(aID);
@@ -252,15 +265,22 @@ void display(void)
 		for(int y = 0; y < fluidSize; y++)
 			for(int z = 0; z < fluidSize; z++)
 			{
-				double density = fluid->getNoise(x, y, z);
-
-				/*if(density > 0.0)
+				float density = grid->GetValue(VecInt3D(x, y, z));
+				/*if(density > 0.0f)
 					cout << "( " << x << " " << y << " " << z << ") - " << density << endl;*/
 
-				glColor4f(density, 0.0f, 0.0f, density);//, 1.0f, 1.0f, 1.0f);
+				glColor4f(density, 0.0f, 1 - density, 1.0f);//, 1.0f, 1.0f, 1.0f);
 				glVertex3f(x * particleSpacing - (fluidSize * particleSpacing / 2), y * particleSpacing - (fluidSize * particleSpacing / 2), z * particleSpacing - (fluidSize * particleSpacing / 2));
 			}
 
+	glEnd();
+
+	glPointSize(5.0f);
+	glColor4f(0.0f, 1.0f, 0.0f, 1.0f);
+
+	glBegin(GL_POINTS);
+	const Vector3D sourceVec = source.GetCenter();
+	glVertex3f(sourceVec(0), sourceVec(1), sourceVec(2));
 	glEnd();
 
 	glDepthMask (GL_TRUE);
@@ -416,6 +436,12 @@ void initialise(void)
 	Plane* leftPlane = new Plane();
 	leftPlane->GenerateVertices(glm::vec3(-25.0f, -100.0f, 0.0f), glm::vec3(-0.5f, 1.0f, 0.0f));
 	planes.push_back(leftPlane);
+	
+	source.SetSource(5.0f);
+	source.SetForce(Vector3D(0.0f, 0.0f, 0.0f));
+	source.Init(solver);
+
+	solver.SetObject(&source, true);
 
 	//fluidCube = FluidCubeCreate(fluidSize, 0.1f, 100.0f, 0.0001f);
 	//FluidCubeAddDensity(fluidCube, glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 5000.0f);
@@ -425,29 +451,29 @@ void initialise(void)
 	//		for(int z = 0; z < fluidSize; z++)
 	//			FluidCubeAddVelocity(fluidCube, x, y, z, 0.0f, -100.0f, 0.0f);
 
-	fluid = new Fluid(fluidSize);
+	//fluid = new Fluid(fluidSize);
 	//fluid->addNoise(glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 1.0f);
 }
 
 //Toggle between pushing and pulling forces, or spawn new particles.
 void HandleMouseClick(int button, int state, int x, int y)
 {
-	if(button == GLUT_LEFT_BUTTON)
-	{
-		if(state == GLUT_DOWN)
-			takeStep = true;
+	//if(button == GLUT_LEFT_BUTTON)
+	//{
+	//	if(state == GLUT_DOWN)
+	//		takeStep = true;
 
-			//FluidCubeAddDensity(fluidCube, glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 5000.0f);
-	}
+	//		//FluidCubeAddDensity(fluidCube, glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 5000.0f);
+	//}
 
-	if(button = GLUT_RIGHT_BUTTON)
-	{
-		if(state == GLUT_DOWN)
-		{
-			takeStep = true;
-			fluid->addNoise(glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 1.0f);
-		}
-	}
+	//if(button = GLUT_RIGHT_BUTTON)
+	//{
+	//	if(state == GLUT_DOWN)
+	//	{
+	//		takeStep = true;
+	//		fluid->addNoise(glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 1.0f);
+	//	}
+	//}
 
 	//if(button == GLUT_LEFT_BUTTON && curSelectedForce != NULL)
 	//{

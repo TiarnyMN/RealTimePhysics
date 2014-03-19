@@ -9,6 +9,8 @@ namespace Fluid
 	class Solver;
 }
 
+#include "shared.h"
+
 #include "config.h"
 #include "vector.h"
 #include "vector3d.h"
