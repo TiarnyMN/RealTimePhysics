@@ -104,8 +104,10 @@ void update(void)
 
 			//Calculating the pressure gradient.
 			Particle* compareParticle = particles[j];
-			float first = (curParticle->density / glm::pow(curParticle->density, 2.0f)) +  (compareParticle->density / glm::pow(compareParticle->density, 2.0f));
-			curParticle->forcePressure += first * compareParticle->mass * CalculatePressureKernal(curParticle->position - compareParticle->position, kernelSize);
+			//float first = (curParticle->density / glm::pow(curParticle->density, 2.0f)) +  (compareParticle->density / glm::pow(compareParticle->density, 2.0f));
+			float first = (curParticle->mass / curParticle->density) + ((curParticle->pressure + compareParticle->pressure) * 0.5f);
+			//Looking at using the pressure multipler (mass / density) * ((pressure[i] + pressure[j]) / 2)
+			curParticle->forcePressure -= first * CalculatePressureKernal(curParticle->position - compareParticle->position, kernelSize);
 		}
 	}
 
