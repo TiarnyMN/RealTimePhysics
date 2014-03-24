@@ -3,6 +3,7 @@ in vec2 oTexUV;
 in vec3 oVertexPos, oNormDir;
 
 uniform sampler2D texSampler;
+uniform vec3 vColor;
 
 out vec4 fColor; 
 
@@ -14,7 +15,7 @@ void main()
 	vec2 texUV = oTexUV;
 
 	vec3 ambiColor = vec3(0.2, 0.2, 0.2);
-	vec3 diffuseColor = vec3(0.0, 0.0, 1.0);
+	vec3 diffuseColor = vColor;
 
 	if(normDotLight > 0.0)
 		diffuseColor = diffuseColor * normDotLight;  

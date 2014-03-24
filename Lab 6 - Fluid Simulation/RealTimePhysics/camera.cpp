@@ -2,8 +2,8 @@
 
 Camera::Camera(void)
 {
-	position = glm::vec3(0.0f, 0.0f, 200.0f);
-	target = glm::vec3(0.0f, 0.0f, 0.0f);
+	position = glm::vec3(0.0f, -HORIZONTAL_BOUNDS * 0.75f, HORIZONTAL_BOUNDS * 10.0f);
+	target = glm::vec3(0.0f, -HORIZONTAL_BOUNDS * 0.75f, 0.0f);
 	forwardVec = glm::normalize(target - position);
 
 	rotVec = glm::vec3(1.57079633f, 0.0f, 0.0f);
@@ -13,8 +13,8 @@ Camera::Camera(void)
 	camNear = 0.1f;
 	camFar = 100000.0f;
 	camSpin = 0.0f;
-	distance = 100.0f;
-	verticalOffset = 10.0f;
+	distance = HORIZONTAL_BOUNDS * 3.0f;
+	verticalOffset = 5.0f;
 
 	speedConstant = 2.0f;
 
@@ -73,7 +73,7 @@ glm::mat4 Camera::GetProjMatrix()
 
 void Camera::Update(GLfloat gameTime)
 {
-	if(!spinEnabled)
+	//if(!spinEnabled)
 		return;
 
 	camSpin += gameTime/2.0f;

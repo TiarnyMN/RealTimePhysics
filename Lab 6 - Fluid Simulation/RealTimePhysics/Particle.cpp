@@ -2,7 +2,7 @@
 
 Particle::Particle(void)
 {
-	mass = 1.0f;
+	mass = PARTICLE_MASS;
 	velocity = glm::vec3();
 }
 

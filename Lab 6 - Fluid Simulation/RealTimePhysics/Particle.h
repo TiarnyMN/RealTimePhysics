@@ -1,12 +1,16 @@
 #pragma once
 #include "shared.h"
 
+using namespace std;
+
 class Particle
 {
 public:
 	Particle(void);
-	glm::vec3 position, velocity, force, color, forcePressure, acceleration, oldVelocity;
-	float mass, density, pressure, forceViscosity;
+	glm::vec3 position, velocity, force, color, forcePressure, forceViscosity, forceSurface, forceInternal, forceExternal, acceleration, oldVelocity;
+	float mass, density, pressure;
+
+	vector<Particle*> neighbours;
 
 public:
 	void SetPosition(GLfloat x, GLfloat y, GLfloat z);

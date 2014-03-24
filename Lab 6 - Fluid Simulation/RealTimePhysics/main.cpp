@@ -1,4 +1,5 @@
 #include "shared.h"
+#include <unordered_map>
 
 int prevFrameTimeSinceStart = 0;
 GLfloat elapsedTimeStep = 0.0f;
@@ -9,32 +10,53 @@ vector<Plane*> planes;
 Shader particleShader;
 Shader planeShader;
 Shader sphereShader;
+Shader lineShader;
 
 Camera particleCamera;
 
-float epsilon = 0.1f;	//A collision smoothing / buffer value, how close a particle can actually get to a plane before we consider it a collision.
-float dampeningStrength = 0.25f;	//We apply a slight dampening, e.g. wind resistance, to reduce the forces applied to the particles over time.
-float elasticity = 0.8f;	//Elasticity of surface, lower values = stronger frictional forces / less rebound.
-
-bool spawningParticles = false;
-
-int maxParticles = 500;
-int oldestParticle = 0;
-int recycledParticles = 0;
-
-const float particleLifetime = 10.0f;
-bool particlesShouldAge = false;
-stringstream ss;
-glm::vec2 mousePos;
-
-glm::vec3 windVector = glm::vec3();
-
 GLUquadricObj* refSphere;
 
-int particleCount = 5;
-float particleSize = 1.0f;
-float particleMass = 1.0f;
-float kernelSize;
+class Hasher
+{
+public:
+	int operator()(glm::vec3 val)
+	{
+		int x = val.x * 73856093;
+		int y = val.y * 19349663;
+		int z = val.z * 83492791;
+		
+		return (x ^ y ^ z);
+	}
+
+	bool operator()(glm::vec3 first, glm::vec3 second)
+	{
+		return first == second;
+	}
+};
+
+std::unordered_multimap<glm::vec3, Particle*, Hasher, Hasher> hashMap;
+
+bool wallEnabled = true;
+bool debuggingEnabled = false;
+
+//int particleCount = 6;
+//int maxParticles;
+//float kernelSize;
+
+void HandleRegularInput(unsigned char curKey, int x, int y)
+{
+	curKey = tolower(curKey);
+	switch(curKey)
+	{
+		case ' ':
+			wallEnabled = false;
+			return;
+
+		case 'a':
+			debuggingEnabled = !debuggingEnabled;
+			return;
+	}
+}
 
 //Generates a random float between minVal and maxVal
 float GetRandomValue(float minVal, float maxVal)
@@ -43,22 +65,42 @@ float GetRandomValue(float minVal, float maxVal)
 	return (rndVal * (maxVal - minVal)) + minVal;
 }
 
-float CalculateKernal(Particle* curParticle, Particle* compareParticle)
+float CalculateKernal(Particle* curParticle, Particle* compareParticle, float d)
 {
-	float distBetweenParticles = glm::distance(curParticle->position, compareParticle->position);
+	float r2 = glm::distance2(curParticle->position, compareParticle->position);
+	float d2 = glm::pow(d, 2.0f);
+	float pi = 3.14f;
 
-	if(distBetweenParticles > kernelSize)
+	return 315.0f / (64.0f * pi * glm::pow(d, 9.0f)) * glm::pow((d2 - r2), 3.0f);
+}
+
+glm::vec3 CalculateNormalKernal(glm::vec3 r, float h)
+{
+	if(glm::length(r) == 0.0f)
+		return glm::vec3();
+
+	return (-945.0f / (32.0f * glm::pi<float>() * glm::pow(h, 9.0f))) * (r / glm::length(r)) * glm::pow(glm::pow(h, 2.0f) - glm::pow(glm::length(r), 2.0f), 2.0f);
+}
+
+float CalculateSurfaceKernal(glm::vec3 r, float h)
+{
+	if(glm::length(r) == 0.0f)
 		return 0.0f;
 
-	return (315.0f / (64.0f * glm::pi<float>() * glm::pow(kernelSize, 9.0f))) * glm::pow(glm::pow(kernelSize, 2.0f) - glm::pow(distBetweenParticles, 2.0f), 3.0f);
+	return (-945.0f / (32.0f * glm::pi<float>() * glm::pow(h, 9.0f))) * (glm::pow(h, 2.0f) - glm::pow(glm::length(r), 2.0f)) * (3.0f * glm::pow(h, 2.0f) - 7.0f * glm::pow(glm::length(r), 2.0f));
 }
 
 glm::vec3 CalculatePressureKernal(glm::vec3 r, float h)
 {
-	if(glm::length(r) > h)
+	if(glm::length(r) == 0.0f)
 		return glm::vec3();
 
 	return (-45.0f  / (glm::pi<float>() * glm::pow(h, 6.0f))) * ((r / glm::length(r)) * glm::pow((h - glm::length(r)), 2.0f));
+}
+
+float CalculateViscosityKernal(glm::vec3 r, float h)
+{
+	return	(45.0f / (glm::pi<float>() * glm::pow(h, 6.0f))) * (h - glm::length(r));
 }
 
 void update(void)
@@ -75,94 +117,196 @@ void update(void)
 	//https://www8.cs.umu.se/kurser/5DV058/VT10/lectures/Lecture8.pdf
 	//http://image.diku.dk/projects/media/kelager.06.pdf
 
-	//5.6.2 Compute Density and Pressure
-	for(int i = 0; i < maxParticles; i++)
+	hashMap.clear();
+	for(int i = 0; i < PARTICLE_COUNT; i++)
+	{
+		hashMap.insert(std::pair<glm::vec3, Particle*>(glm::floor(particles[i]->position / SMOOTHING_KERNEL_SIZE), particles[i]));
+		Particle* curParticle = particles[i];
+		curParticle->neighbours.clear();
+
+		for(int x = -1; x < 2; x++)
+			for(int y = -1; y < 2; y++)
+				for(int z = -1; z < 2; z++)
+				{
+					auto iterator = hashMap.equal_range(glm::vec3(x, y, z) + glm::floor(particles[i]->position / SMOOTHING_KERNEL_SIZE));
+					for(auto it = iterator.first; it != iterator.second; it++)
+					{
+						Particle* compParticle = (*it).second;
+
+						if(glm::distance(curParticle->position, compParticle->position) <= SMOOTHING_KERNEL_SIZE)
+						{
+							curParticle->neighbours.push_back((*it).second);
+
+							if(compParticle != curParticle)
+								compParticle->neighbours.push_back(curParticle);
+						}
+					}
+				}
+	}
+
+	//5.6.2 (ii + iii) Compute Density and Pressure
+	//for(int i = 0; i < PARTICLE_COUNT; i++)
+	//{
+	//	Particle* curParticle = particles[i];
+	//	curParticle->neighbours.clear();
+
+	//	for(int x = -1; x < 2; x++)
+	//		for(int y = -1; y < 2; y++)
+	//			for(int z = -1; z < 2; z++)
+	//			{
+	//				auto iterator = hashMap.equal_range(glm::vec3(x, y, z) + glm::floor(particles[i]->position / SMOOTHING_KERNEL_SIZE));
+	//				for(auto it = iterator.first; it != iterator.second; it++)
+	//				{
+	//					curParticle->neighbours.push_back((*it).second);
+	//				}
+	//			}
+	//}
+
+
+	for(int i = 0; i < PARTICLE_COUNT; i++)
 	{
 		Particle* curParticle = particles[i];
 		curParticle->density = 0.0f;
+		curParticle->pressure = 0.0f;
 
-		for(int j = 0; j < maxParticles; j++)
+		for(int j = 0; j < curParticle->neighbours.size(); j++)
 		{
-			Particle* compareParticle = particles[j];
-			curParticle->density += curParticle->mass * CalculateKernal(curParticle, compareParticle);	//Compute mass-density, p.
+			Particle* compareParticle = curParticle->neighbours[j];
+			if(debuggingEnabled)
+				cout << i << " (" << j << ") - " << compareParticle->mass * CalculateKernal(curParticle, compareParticle, SMOOTHING_KERNEL_SIZE) << endl;
+			curParticle->density += compareParticle->mass * CalculateKernal(curParticle, compareParticle, SMOOTHING_KERNEL_SIZE);
 		}
-
-		const float stiffnessConstant = 3.0f;		//gas stiffness constant, k.
-		curParticle->pressure = stiffnessConstant * curParticle->density;	//Compute pressure p(i).
+		if(debuggingEnabled)
+			cout << i << " - " << curParticle->density << endl << endl;
+		curParticle->pressure = STIFFNESS_CONSTANT * (curParticle->density);	//Compute pressure p(i).
 	}
 
-	//5.6.2 Compute Density and Pressure
-	for(int i = 0; i < maxParticles; i++)
+	//cout << endl;
+
+	//5.6.3 (ii) Compute the pressure force density
+	for(int i = 0; i < PARTICLE_COUNT; i++)
 	{
 		Particle* curParticle = particles[i];
 		curParticle->forcePressure = glm::vec3();
+		curParticle->forceViscosity = glm::vec3();
+		curParticle->forceSurface = glm::vec3();
+		curParticle->color = glm::vec3(0.0f, 0.0f, 1.0f);
 
-		for(int j = 0; j < maxParticles; j++)
+		for(int j = 0; j < curParticle->neighbours.size(); j++)
 		{
-			if(i == j)
+			Particle* compareParticle = curParticle->neighbours[j];
+
+			if(curParticle == compareParticle)
 				continue;
 
-			//Calculating the pressure gradient.
-			Particle* compareParticle = particles[j];
-			//float first = (curParticle->density / glm::pow(curParticle->density, 2.0f)) +  (compareParticle->density / glm::pow(compareParticle->density, 2.0f));
-			float first = (curParticle->mass / curParticle->density) + ((curParticle->pressure + compareParticle->pressure) * 0.5f);
+			//Calculating the pressure gradient.			
+			float firstPart = (curParticle->mass / curParticle->density) * ((curParticle->pressure + compareParticle->pressure) * 0.5f);
 			//Looking at using the pressure multipler (mass / density) * ((pressure[i] + pressure[j]) / 2)
-			curParticle->forcePressure -= first * CalculatePressureKernal(curParticle->position - compareParticle->position, kernelSize);
+			curParticle->forcePressure -= firstPart * CalculatePressureKernal(curParticle->position - compareParticle->position, SMOOTHING_KERNEL_SIZE);
+			
+			glm::vec3 firstHalf = (compareParticle->velocity - curParticle->velocity) * (compareParticle->mass / compareParticle->density);
+			curParticle->forceViscosity += firstHalf * CalculateViscosityKernal(curParticle->position - compareParticle->position, SMOOTHING_KERNEL_SIZE);			//Should this be -= ???
 		}
+
+		curParticle->forceViscosity *= VISCOSITY_CONSTANT;
+		curParticle->forceInternal = curParticle->forcePressure + curParticle->forceViscosity;
+
+		glm::vec3 surfaceNormal = glm::vec3();	//Inward Surface Normal
+
+		for(int j = 0; j < curParticle->neighbours.size(); j++)
+		{
+			Particle* compareParticle = curParticle->neighbours[j];
+			surfaceNormal += (compareParticle->mass / compareParticle->density) * CalculateNormalKernal(curParticle->position - compareParticle->position, SMOOTHING_KERNEL_SIZE);
+		}
+
+		if(glm::length(surfaceNormal) > 0.5f)
+		{
+			//Colour the particle to indicate it is on the surface.
+			//curParticle->color = glm::vec3(1.0f, 1.0f, 1.0f);
+
+			float laplacianC = 0.0f;
+			for(int j = 0; j < curParticle->neighbours.size(); j++)
+			{
+				Particle* compareParticle = curParticle->neighbours[j];
+				laplacianC += CalculateSurfaceKernal(curParticle->position - compareParticle->position, SMOOTHING_KERNEL_SIZE);
+			}
+
+			curParticle->forceSurface = -SIGMA * laplacianC * glm::normalize(surfaceNormal);
+		}
+		
 	}
 
-	for(int i = 0; i < maxParticles; i++)
+	//5.6.4 (i) + 5.6.5 (ii) Add gravitational force and update particle acceleration. 
+	for(int i = 0; i < PARTICLE_COUNT; i++)
 	{
 		Particle* curParticle = particles[i];
-		curParticle->forcePressure += glm::vec3(0.0f, -9.81f, 0.0f);
+		curParticle->forceExternal = glm::vec3(0.0f, -9.81f, 0.0f) * curParticle->density;	//Fix this later.
 
-		curParticle->acceleration = curParticle->forcePressure / curParticle->density;
+		curParticle->acceleration = (curParticle->forceInternal + curParticle->forceExternal + curParticle->forceSurface) / curParticle->density;
 	}
 
-	float timeStep = 0.01f;
-	for(int i = 0; i < maxParticles; i++)
+	//5.6.5 (iiu) Use leapfrog integration to update particle position.
+	for(int i = 0; i < PARTICLE_COUNT; i++)
 	{
 		Particle* curParticle = particles[i];
-		glm::vec3 newVel = curParticle->oldVelocity + timeStep * curParticle->acceleration;
+		glm::vec3 newVel = curParticle->oldVelocity + FLUID_TIME_STEP * curParticle->acceleration;
 		//glm::vec3 halfVel = (curParticle->oldVelocity + newVel) / 2.0f;
 
 		glm::vec3 oldPos = curParticle->position;
-		curParticle->position = curParticle->position + newVel * timeStep;
+		curParticle->position = curParticle->position + newVel * FLUID_TIME_STEP;
 
-		curParticle->velocity = newVel + (timeStep / 2.0f) * curParticle->acceleration;
+		curParticle->velocity = newVel + (FLUID_TIME_STEP / 2.0f) * curParticle->acceleration;
 		curParticle->oldVelocity = newVel;
-	}	
+	}
 
+	for(int i = 0; i < PARTICLE_COUNT; i++)
+	{
+		Particle* curParticle = particles[i];
+		if(curParticle->position.y < -HORIZONTAL_BOUNDS && curParticle->velocity.y < 0.0f)
+		{
+			curParticle->position.y = -HORIZONTAL_BOUNDS;
+			curParticle->velocity.y = -curParticle->velocity.y * DAMPENING_STRENGTH;
+			curParticle->oldVelocity.y = -curParticle->oldVelocity.y * DAMPENING_STRENGTH;
+		}
 
-	////Mid Point Method - Update once, but using the value as it was in the middle.
-	//float midPointTimeStep = elapsedTimeStep / 2;
-	//for(int i = 0; i < particles.size(); i++)
-	//{
-	//	Particle* curParticle = particles[i];
-	//	particles[i]->position += particles[i]->velocity * elapsedTimeStep;
+		if(wallEnabled && curParticle->position.x < -HORIZONTAL_BOUNDS)
+		{
+			curParticle->position.x = -HORIZONTAL_BOUNDS;
+			curParticle->velocity.x = -curParticle->velocity.x * DAMPENING_STRENGTH;
+			curParticle->oldVelocity.x = -curParticle->oldVelocity.x * DAMPENING_STRENGTH;
+		}
+		else if(curParticle->position.x < -HORIZONTAL_BOUNDS * 3.0f)
+		{
+			curParticle->position.x = -HORIZONTAL_BOUNDS * 3.0f;
+			curParticle->velocity.x = -curParticle->velocity.x * DAMPENING_STRENGTH;
+			curParticle->oldVelocity.x = -curParticle->oldVelocity.x * DAMPENING_STRENGTH;
+		}
+		else if(curParticle->position.x > HORIZONTAL_BOUNDS)
+		{
+			curParticle->position.x = HORIZONTAL_BOUNDS;
+			curParticle->velocity.x = -curParticle->velocity.x * DAMPENING_STRENGTH;
+			curParticle->oldVelocity.x = -curParticle->oldVelocity.x * DAMPENING_STRENGTH;
+		}
 
-	//	particles[i]->velocity.y -= 9.81f * midPointTimeStep;
-
-	//	//Collision handling from lecture slides.
-	//	for(int j = 0; j < planes.size(); j++)
-	//	{
-	//		Plane* curPlane = planes[j];
-	//		glm::vec3 relPos = particles[i]->position - curPlane->position;
-	//		float dotProd = glm::dot(relPos, curPlane->normal);		//(x-p).n
-
-	//		float dotProd2 = glm::dot(curPlane->normal, particles[i]->velocity);		//(n.v)
-
-	//		if(dotProd < epsilon && dotProd2 < epsilon)
-	//		{
-	//			glm::vec3 vN = glm::dot(curPlane->normal, particles[i]->velocity) * curPlane->normal;
-	//			glm::vec3 vT = particles[i]->velocity - vN;
-	//			vT *= 0.75f;	//"Frictional" force
-
-	//			particles[i]->velocity = vT - elasticity * vN;
-	//		}
-	//	}		
-	//	particles[i]->velocity -= particles[i]->velocity * dampeningStrength * midPointTimeStep;	//Damp the value slightly.
-	//}
+		if(curParticle->position.z < -HORIZONTAL_BOUNDS)
+		{
+			curParticle->position.z = -HORIZONTAL_BOUNDS;
+			curParticle->velocity.z = -curParticle->velocity.z * DAMPENING_STRENGTH;
+			curParticle->oldVelocity.z = -curParticle->oldVelocity.z * DAMPENING_STRENGTH;
+		}
+		//else if(curParticle->position.z < -HORIZONTAL_BOUNDS * 3.0f)
+		//{
+		//	curParticle->position.z = -HORIZONTAL_BOUNDS * 3.0f;
+		//	curParticle->velocity.z = -curParticle->velocity.z * DAMPENING_STRENGTH;
+		//	curParticle->oldVelocity.z = -curParticle->oldVelocity.z * DAMPENING_STRENGTH;
+		//}
+		else if(curParticle->position.z > HORIZONTAL_BOUNDS)
+		{
+			curParticle->position.z = HORIZONTAL_BOUNDS;
+			curParticle->velocity.z = -curParticle->velocity.z * DAMPENING_STRENGTH;
+			curParticle->oldVelocity.z = -curParticle->oldVelocity.z * DAMPENING_STRENGTH;
+		}
+	}
     
 	glutPostRedisplay();
 }
@@ -190,159 +334,37 @@ void display(void)
 
 	glEnd();
 
-	//Draw the particles.
-	//int bID = particleShader.GetShaderID();
-	//glUseProgram(bID);
-
-	//glUniformMatrix4fv(glGetUniformLocation(bID, "camMat"), 1, GL_FALSE, glm::value_ptr(viewMat));
-	//glUniformMatrix4fv(glGetUniformLocation(bID, "perMat"), 1, GL_FALSE, glm::value_ptr(projMat));
-
-	//glEnable (GL_BLEND);
-	//glDepthMask (GL_FALSE);
-
-	////glPointSize(particleSize);
-	////glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-	////glBegin(GL_POINTS);
-
-	////for(int x = 0; x < fluidSize; x++)
-	////	for(int y = 0; y < fluidSize; y++)
-	////		for(int z = 0; z < fluidSize; z++)
-	////		{
-	////			float density = grid->GetValue(VecInt3D(x, y, z));
-	////			/*if(density > 0.0f)
-	////				cout << "( " << x << " " << y << " " << z << ") - " << density << endl;*/
-
-	////			glColor4f(density, 0.0f, 1 - density, 1.0f);//, 1.0f, 1.0f, 1.0f);
-	////			glVertex3f(x * particleSpacing - (fluidSize * particleSpacing / 2), y * particleSpacing - (fluidSize * particleSpacing / 2), z * particleSpacing - (fluidSize * particleSpacing / 2));
-	////		}
-
-	////glEnd();
-
-	//glPointSize(5.0f);
-	//glColor4f(0.0f, 1.0f, 0.0f, 1.0f);
-
 	int shaderID = sphereShader.GetShaderID();
 	glUseProgram(shaderID);
-//
-//	uniform mat4 mTransform, mView, mProjection;
-//
-//out vec2 oTexUV;
-//out vec3 oVertexPos, oNormDir;
 
 	glm::mat4 finalTransform;
 	int transformLoc = glGetUniformLocation(shaderID, "mTransform");
+	int colourLoc = glGetUniformLocation(shaderID, "vColor");
 
 	glUniformMatrix4fv(glGetUniformLocation(shaderID, "mView"), 1, GL_FALSE, glm::value_ptr(viewMat));
 	glUniformMatrix4fv(glGetUniformLocation(shaderID, "mProjection"), 1, GL_FALSE, glm::value_ptr(projMat));
+	
+	glUniformMatrix4fv(glGetUniformLocation(shaderID, "gWVP"), 1, GL_FALSE, glm::value_ptr(projMat * viewMat));
+
+	//glPointSize(10.0f);
+	//glBegin(GL_POINTS);
 
 	for(int i = 0; i < particles.size(); i++)
 	{
+		//if(particles[i]->color != glm::vec3(1.0f, 1.0f, 1.0f))
+		//	continue;
+
 		finalTransform = glm::translate(particles[i]->GetPosition());
+		//finalTransform = glm::translate(glm::vec3());
 		glUniformMatrix4fv(transformLoc, 1, GL_FALSE, &finalTransform[0][0]);
-		gluSphere(refSphere, particleSize, 10, 10);
+		glUniform3f(colourLoc, particles[i]->color.x, particles[i]->color.y, particles[i]->color.z);
+
+		float particleRenderSize = glm::pow((3.0f * particles[i]->mass) / (4.0f * glm::pi<float>() * particles[i]->density), 1.0f / 3.0f);
+		//glColor3f(particles[i]->color.x, particles[i]->color.y, particles[i]->color.z);
+		//glVertex3f(particles[i]->GetPosition().x, particles[i]->GetPosition().y, particles[i]->GetPosition().z);		
+		gluSphere(refSphere, particleRenderSize, 5, 5);
 	}
-
-	////Draw the point at which the forces are acting, if in the right mode, as white squares.
-	//if(currentDemoMode == DemoMode::Celestial || currentDemoMode == DemoMode::Plume)
-	//{
-	//	glPointSize(10);
-	//	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-	//	glBegin(GL_POINTS);	
-
-	//	for(int i = 0; i < forces.size(); i++)
-	//	{
-	//		if(forces[i]->forceEnabled)
-	//			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-	//		else
-	//			glColor4f(0.1f, 0.1f, 0.1f, 1.0f);
-
-	//		glVertex3f(forces[i]->position.x, forces[i]->position.y, forces[i]->position.z);
-	//	}
-
-	//	glEnd();
-	//}
-
-	////We use big "particles" for the snow and plume modes, otherwise smaller ones.
-	//if(currentDemoMode != DemoMode::Celestial)
-	//	glPointSize(10);
-	//else
-	//	glPointSize(5);
-
-	//glBegin(GL_POINTS);
-
-	////Draw and colour all the particles.
-	//for(int i = 0; i < particles.size(); i++)
-	//{
-	//	glm::vec3 pos = particles[i]->GetPosition();
-	//	glVertex3f(pos.x, pos.y, pos.z);
-
-	//	if(currentDemoMode == DemoMode::Snow)
-	//	{
-	//		glColor4f(1.0f, 1.0f, 1.0f, (particlesShouldAge ? 1.0f - glm::min(1.0f, (particles[i]->age / particleLifetime)) : 1.0f));
-	//	}
-	//	else
-	//	{
-	//		glm::vec3 colorStrength = glm::normalize(pos);
-	//		colorStrength *= particles[i]->velocity;
-
-	//		colorStrength.x = glm::max(0.0f, glm::min(colorStrength.x, 1.0f));
-	//		colorStrength.y = glm::max(0.0f, glm::min(colorStrength.y, 1.0f));
-	//		colorStrength.z = glm::max(0.0f, glm::min(colorStrength.z, 1.0f));
-
-	//		glColor4f(colorStrength.x, colorStrength.y, colorStrength.z, (particlesShouldAge ? 1.0f - glm::min(1.0f, (particles[i]->age / particleLifetime)) : 1.0f));
-	//	}
-	//}
-
 	//glEnd();
-
-	////Prints out debug information about the current scene state to the screen.
-	//ss.str(std::string());
-	//ss << "Particle Systems - Particle / Plane Collisions\n";
-	//ss << "Mode: ";
-
-	//if(currentDemoMode == DemoMode::Celestial)
-	//	ss << "Celestial" << endl;
-	//else if(currentDemoMode == DemoMode::Snow)
-	//	ss << "Snow Fall" << endl;
-	//else
-	//	ss << "High Friction Plume" << endl;
-
-	//ss << "Maximum Particles: " << maxParticles << endl;
-	//ss << "Recycled Particles: " << recycledParticles << endl;
-
-	//ss << endl;
-	//if(currentDemoMode != DemoMode::Snow)
-	//{
-	//	for(int i = 0; i < forces.size(); i++)
-	//	{
-	//		ss << "Force " << i+1 << " - " << (forces[i]->forceEnabled ? "ON" : "OFF") << (curSelectedForce == forces[i] ? " - SELECTED" : "") << endl;
-	//		ss << "Pos: (" << forces[i]->position.x << ", " << forces[i]->position.y << ", " << forces[i]->position.z << ")" << endl;
-	//		if(forces[i]->forceEnabled)
-	//		{
-	//			ss << "Strength: " << forces[i]->strength << endl;
-	//			ss << "Force Mode: " << (forces[i]->forcePushing ? "PUSH" : "PULL") << endl;
-	//		}
-	//		ss << endl;
-	//	}
-	//}
-
-	////We need to disable textures if we want the text to render correctly.
-	//glActiveTexture(GL_TEXTURE0);
-	//glDisable(GL_TEXTURE_2D);
-
-	//string text = ss.str();
-	//glUseProgram(0);
-
-	//if(currentDemoMode == DemoMode::Snow)
-	//	glColor3f(1.0f, 0.0f, 0.0f);
-	//else
-	//	glColor3f(1.0f, 1.0f, 1.0f);
-
-	//glRasterPos2f(-1.0f, 0.95f);
-	//glutBitmapString(GLUT_BITMAP_HELVETICA_18, (const unsigned char*)text.c_str());
-
-	//glActiveTexture(GL_TEXTURE0);
-	//glEnable(GL_TEXTURE_2D);	
 
 	glutSwapBuffers();
 }
@@ -357,16 +379,16 @@ void initialise(void)
 	particleShader = Shader("vParticle.shader", "fParticle.shader");
 	sphereShader = Shader("vSphere.shader", "fSphere.shader");
 	planeShader = Shader("vPlane.shader", "fPlane.shader");
+	lineShader = Shader("vLine.shader", "fLine.shader");
 
-	maxParticles = particleCount * particleCount * particleCount;
-	particles.reserve(particleCount * particleCount * particleCount);
+	particles.reserve(PARTICLE_COUNT);
 
-	for(int x = 0; x < particleCount; x++)
-		for(int y = 0; y < particleCount; y++)
-			for(int z = 0; z < particleCount; z++)
+	for(int x = 0; x < PARTICLES_PER_DIMENSION; x++)
+		for(int y = 0; y < PARTICLES_PER_DIMENSION; y++)
+			for(int z = 0; z < PARTICLES_PER_DIMENSION; z++)
 			{
 				Particle* particle = new Particle();
-				particle->SetPosition(x * particleSize, y * particleSize, z * particleSize);
+				particle->SetPosition(GetRandomValue(-HORIZONTAL_BOUNDS, HORIZONTAL_BOUNDS), GetRandomValue(0.0f, HORIZONTAL_BOUNDS), GetRandomValue(-HORIZONTAL_BOUNDS, HORIZONTAL_BOUNDS));
 				particle->SetVelocity(0.0f, 0.0f, 0.0f);
 				particles.push_back(particle);
 			}
@@ -375,209 +397,42 @@ void initialise(void)
 	flatPlane->GenerateVertices(glm::vec3(0.0f, -20.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	planes.push_back(flatPlane);
 
-	//Plane* rightPlane = new Plane();
-	//rightPlane->GenerateVertices(glm::vec3(10.0f, -100.0f, 0.0f), glm::vec3(-1.0f, 0.0f, 0.0f));
-	//planes.push_back(rightPlane);
-
-	//Plane* leftPlane = new Plane();
-	//leftPlane->GenerateVertices(glm::vec3(-1.00f, -100.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-	//planes.push_back(leftPlane);
-
 	refSphere = gluNewQuadric();
 	gluQuadricTexture(refSphere, TRUE);
 	gluQuadricNormals(refSphere, TRUE);
 
-	kernelSize =  glm::pow((3 * glm::pow((float)particleCount, 3.0f) * 20) / (5 * glm::pi<float>() * glm::pow((float)particleCount, 3.0f)), 1.0f/3.0f);
-	
-	//source.SetSource(5.0f);
-	//source.SetForce(Vector3D(0.0f, 0.0f, 0.0f));
-	//source.Init(solver);
+	cout << "REST DENSITY - " << REST_DENSITY << endl;
+	cout << "PARTICLES PER DIMENSION - " << PARTICLES_PER_DIMENSION << endl;
+	cout << "PARTICLE COUNT - " << PARTICLE_COUNT << endl;
 
-	//solver.SetObject(&source, true);
+	cout << "STIFFNESS CONSTANT - " << STIFFNESS_CONSTANT << endl;
+	cout << "VISCOSITY CONSTANT - " << VISCOSITY_CONSTANT << endl;
+	cout << "AVERAGE KERNEL PARTICLES - " << AVERAGE_KERNEL_PARTICLES << endl;
+	cout << "SURFACE THRESHOLD - " << SURFACE_THRESHOLD << endl;
 
-	//fluidCube = FluidCubeCreate(fluidSize, 0.1f, 100.0f, 0.0001f);
-	//FluidCubeAddDensity(fluidCube, glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 5000.0f);
+	cout << "SIGMA - " << SIGMA << endl;
 
-	//for(int x = 0; x < fluidSize; x++)
-	//	for(int y = 0; y < fluidSize; y++)
-	//		for(int z = 0; z < fluidSize; z++)
-	//			FluidCubeAddVelocity(fluidCube, x, y, z, 0.0f, -100.0f, 0.0f);
+	cout << "FLUID TIME STEP - " << FLUID_TIME_STEP << endl;
+	cout << "VERTICAL BOUNDS - " << VERTICAL_BOUNDS << endl;
+	cout << "HORIZONTAL BOUNDS - " << HORIZONTAL_BOUNDS << endl;
+	cout << "BOX VOLUME - " << BOX_VOLUME << endl;
 
-	//fluid = new Fluid(fluidSize);
-	//fluid->addNoise(glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 1.0f);
+	cout << "DAMPENING STRENGTH - " << DAMPENING_STRENGTH << endl;
+	cout << "PARTICLE MASS - " << PARTICLE_MASS << endl;
+
+	cout << "SMOOTHING KERNEL SIZE - " << SMOOTHING_KERNEL_SIZE << endl;
+	cout << "PARTICLE SIZE - " << PARTICLE_SIZE << endl;
 }
 
-//Toggle between pushing and pulling forces, or spawn new particles.
-void HandleMouseClick(int button, int state, int x, int y)
+
+void InitialiseCallbacks()
 {
-	//if(button == GLUT_LEFT_BUTTON)
-	//{
-	//	if(state == GLUT_DOWN)
-	//		takeStep = true;
-
-	//		//FluidCubeAddDensity(fluidCube, glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 5000.0f);
-	//}
-
-	//if(button = GLUT_RIGHT_BUTTON)
-	//{
-	//	if(state == GLUT_DOWN)
-	//	{
-	//		takeStep = true;
-	//		fluid->addNoise(glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), glm::round(fluidSize / 2.0f), 1.0f);
-	//	}
-	//}
-
-	//if(button == GLUT_LEFT_BUTTON && curSelectedForce != NULL)
-	//{
-	//	if(state == GLUT_DOWN)
-	//		curSelectedForce->forcePushing = true;
-	//	else
-	//		curSelectedForce->forcePushing = false;
-	//}
-
-	//if(button == GLUT_RIGHT_BUTTON)
-	//{
-	//	if(state == GLUT_DOWN)
-	//		spawningParticles = true;
-	//	else
-	//		spawningParticles = false;
-	//}
-}
-
-//void SwitchDemoMode(DemoMode demoMode)
-//{
-//	//if(demoMode == DemoMode::Plume)
-//	//	elasticity = 0.1f;
-//	//else
-//	//	elasticity = 0.8f;
-//
-//	////Set up the particles for snow fall.
-//	//if(demoMode == DemoMode::Snow)
-//	//{
-//	//	particleCamera.position = glm::vec3(0.0f, -60.0f, 100.0f);
-//	//	particleCamera.forwardVec = glm::normalize(particleCamera.target - particleCamera.position);
-//	//	particlesShouldAge = true;
-//
-//	//	for(int i = 0; i < maxParticles; i++)
-//	//	{
-//	//		particles[i]->SetPosition(GetRandomValue(-100.0f, 100.0f), GetRandomValue(0.0f, 100.0f), GetRandomValue(-100.0f, 100.0f));
-//	//		particles[i]->SetVelocity(GetRandomValue(-10.0f, 10.0f), 0.0f, 0.0f);
-//	//		particles[i]->age = GetRandomValue(-30.0f, 0.0f);
-//	//	}
-//	//}
-//	//else
-//	//{
-//	//	//Set the scene up for plume mode.
-//	//	if(demoMode == DemoMode::Plume)
-//	//	{
-//	//		particleCamera.position = glm::vec3(0.0f, -50.0f, 100.0f);
-//	//		particleCamera.forwardVec = glm::normalize(particleCamera.target - particleCamera.position);
-//	//		particlesShouldAge = false;
-//
-//	//		for(int i = 0; i < forces.size(); i++)
-//	//			forces[i]->forceEnabled = false;
-//
-//	//		curSelectedForce = forces[0];
-//	//	}
-//	//	else
-//	//	{
-//	//		particleCamera.position = glm::vec3(0.0f, 0.0f, 100.0f);
-//	//		particleCamera.forwardVec = glm::normalize(particleCamera.target - particleCamera.position);
-//	//		particlesShouldAge = true;
-//
-//	//		for(int i = 0; i < forces.size(); i++)
-//	//			forces[i]->forceEnabled = true;
-//
-//	//		curSelectedForce = NULL;
-//	//	}
-//
-//	//	//Either way, we want to randomise their spawn position.
-//	//	for(int i = 0; i < maxParticles; i++)
-//	//	{
-//	//		particles[i]->SetPosition(GetRandomValue(-50.0f, 50.0f), GetRandomValue(0.0f, 100.0f), GetRandomValue(-50.0f, 50.0f));
-//	//		particles[i]->SetVelocity(0.0f, 0.0f, 0.0f);
-//	//		particles[i]->age = GetRandomValue(-30.0f, 0.0f);
-//	//	}
-//	//}
-//}
-
-void HandleRegularInput(unsigned char key, int x, int y)
-{
-	/*switch(key)
-	{
-		case ' ':
-			if(curSelectedForce != NULL)
-				curSelectedForce->forceEnabled = !curSelectedForce->forceEnabled;
-			break;
-
-		case 'w':
-			particleCamera.MoveForwards(elapsedTimeStep);
-			break;
-
-		case 's':
-			particleCamera.MoveBackwards(elapsedTimeStep);
-			break;
-
-		case 'a':
-			particleCamera.RotateX(elapsedTimeStep);
-			break;
-
-		case 'd':
-			particleCamera.RotateX(-elapsedTimeStep);
-			break;
-
-		case 'q':
-			particleCamera.RotateY(elapsedTimeStep);
-			break;
-
-		case 'e':
-			particleCamera.RotateY(-elapsedTimeStep);
-			break;
-
-		case '0':
-			curSelectedForce = NULL;
-			break;
-
-		case '1':
-			curSelectedForce = forces[0];
-			break;
-
-		case '2':
-			curSelectedForce = forces[1];
-			break;
-
-		case '3':
-			curSelectedForce = forces[2];
-			break;
-
-		case '4':
-			curSelectedForce = forces[3];
-			break;
-
-		case '-':
-			curSelectedForce->strength -= 100.0f;
-			break;
-
-		case '=':
-			curSelectedForce->strength += 100.0f;
-			break;
-
-		case 'p':
-			if(currentDemoMode == DemoMode::Celestial)
-				currentDemoMode = DemoMode::Snow;
-			else if(currentDemoMode == DemoMode::Snow)
-				currentDemoMode = DemoMode::Plume;
-			else
-				currentDemoMode = DemoMode::Celestial;
-
-			SwitchDemoMode(currentDemoMode);
-			break;
-	}*/
-}
-
-void HandleMouseMovement(int x, int y)
-{
-	mousePos = glm::vec2(x, y);
+	glutKeyboardFunc(HandleRegularInput);
+	//glutIdleFunc(UpdateScene);						// Tell glut where the update function is, to execute when system is idle (after drawing completed).
+	//glutDisplayFunc(Render);						// Tell glut where the display function is
+	//glutMouseFunc(MouseCB);
+	//glutMotionFunc(MouseMotionCB);
+	//glutPassiveMotionFunc(MousePassiveCB);
 }
 
 int main(int argc, char** argv)
@@ -597,10 +452,12 @@ int main(int argc, char** argv)
 	glutDisplayFunc(display);						// Tell glut where the display function is
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
-	glutKeyboardFunc(HandleRegularInput);
-	glutMotionFunc(HandleMouseMovement);
-	glutPassiveMotionFunc(HandleMouseMovement);
-	glutMouseFunc(HandleMouseClick);
+	InitialiseCallbacks();
+
+	//glutKeyboardFunc(HandleRegularInput);
+	//glutMotionFunc(HandleMouseMovement);
+	//glutPassiveMotionFunc(HandleMouseMovement);
+	//glutMouseFunc(HandleMouseClick);
 
     GLenum res = glewInit();						// A call to glewInit() must be done after glut is initialized!
     if (res != GLEW_OK) 
