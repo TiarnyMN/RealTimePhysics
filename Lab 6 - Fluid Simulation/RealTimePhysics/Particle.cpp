@@ -1,8 +1,9 @@
 #include "Particle.h"
 
-Particle::Particle(void)
+Particle::Particle(float m)
 {
-	mass = PARTICLE_MASS;
+	mass = m;
+	inverseMass = 1 / mass;
 	velocity = glm::vec3();
 }
 

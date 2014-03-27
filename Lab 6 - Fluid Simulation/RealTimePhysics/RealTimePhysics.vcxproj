@@ -11,6 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="FluidSim.h" />
+    <ClInclude Include="Hasher.h" />
     <ClInclude Include="Particle.h" />
     <ClInclude Include="Plane.h" />
     <ClInclude Include="shader.h" />
@@ -18,14 +20,17 @@
     <ClInclude Include="camera.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Vertex.h" />
+    <ClInclude Include="WaterSim.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="FluidSim.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Particle.cpp" />
     <ClCompile Include="Plane.cpp" />
     <ClCompile Include="shader.cpp" />
     <ClCompile Include="camera.cpp" />
     <ClCompile Include="Texture.cpp" />
+    <ClCompile Include="WaterSim.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="fLine.shader" />
@@ -83,6 +88,8 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\freeglut\include;C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\glew-1.10.0\include;C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\glm;C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\DevIL\include;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\freeglut\include;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\glew-1.10.0\include;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\glm;C:\Source Control\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\DevIL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -108,12 +115,14 @@ echo F|xcopy /y "$(SolutionDir)RealTimePhysics\fSphere.shader" "$(OutDir)Shaders
       <WarningLevel>Level3</WarningLevel>
       <PrecompiledHeader>
       </PrecompiledHeader>
-      <Optimization>MaxSpeed</Optimization>
+      <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\Lab 6 - Fluid Simulation\RealTimePhysics\freeglut\include;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\Lab 6 - Fluid Simulation\RealTimePhysics\glew-1.10.0\include;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\Lab 6 - Fluid Simulation\RealTimePhysics\glm;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\Lab 6 - Fluid Simulation\RealTimePhysics\DevIL\include;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\freeglut\include;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\glew-1.10.0\include;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\glm;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\DevIL\include;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\VLD\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\Lab 6 - Fluid Simulation\RealTimePhysics\freeglut\include;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\Lab 6 - Fluid Simulation\RealTimePhysics\glew-1.10.0\include;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\Lab 6 - Fluid Simulation\RealTimePhysics\glm;C:\Tiarny\RealTimePhysics\Lab 6 - Fluid Simulation\RealTimePhysics\mct\impl;\\tholos.itserv.scss.tcd.ie\Pgrad\tmcnulty\Desktop\Lab 6 - Fluid Simulation\RealTimePhysics\DevIL\include;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\freeglut\include;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\glew-1.10.0\include;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\glm;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\DevIL\include;C:\Users\Tiarny\Desktop\RealTimePhysics\RealTimePhysics\VLD\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <OmitFramePointers>true</OmitFramePointers>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

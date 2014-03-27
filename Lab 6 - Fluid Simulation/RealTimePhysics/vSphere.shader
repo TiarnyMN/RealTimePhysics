@@ -5,14 +5,14 @@ layout (location = 8) in vec2 vTexCoord;
 
 uniform mat4 mTransform, mView, mProjection;
 
-out vec2 oTexUV;
-out vec3 oVertexPos, oNormDir;
+//out vec2 oTexUV;
+//out vec3 oVertexPos, oNormDir;
 
 void main()
 {	
-	oVertexPos = vec3(mView * mTransform * vec4(vPosition, 1.0));
-	oNormDir = normalize(mat3(mView * mTransform) * vNormal);
+	vec3 oVertexPos = vec3(mView * mTransform * vec4(vPosition, 1.0));
+	//oNormDir = normalize(mat3(mView * mTransform) * vNormal);
 
-	oTexUV = vTexCoord;		
+	//oTexUV = vTexCoord;		
 	gl_Position = mProjection * vec4(oVertexPos, 1.0);
 }

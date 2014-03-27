@@ -36,6 +36,15 @@
     <ClInclude Include="camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="FluidSim.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Hasher.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="WaterSim.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -54,6 +63,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="camera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidSim.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="WaterSim.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

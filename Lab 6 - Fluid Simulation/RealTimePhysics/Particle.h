@@ -6,9 +6,9 @@ using namespace std;
 class Particle
 {
 public:
-	Particle(void);
+	Particle(float m);
 	glm::vec3 position, velocity, force, color, forcePressure, forceViscosity, forceSurface, forceInternal, forceExternal, acceleration, oldVelocity;
-	float mass, density, pressure;
+	float mass, inverseMass, density, pressure;
 
 	vector<Particle*> neighbours;
 
