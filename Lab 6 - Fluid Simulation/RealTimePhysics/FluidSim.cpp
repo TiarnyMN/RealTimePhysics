@@ -181,7 +181,7 @@ void FluidSim::Update(void)
 	for(int i = 0; i < ParticleCount; i++)
 	{
 		Particle* curParticle = particles[i];
-		curParticle->forceExternal = glm::vec3(0.0f, -9.81f, 0.0f) * curParticle->density;	//Fix this later.
+		curParticle->forceExternal = glm::vec3(0.0f, -9.81f, 0.0f) * curParticle->density;
 
 		curParticle->acceleration = (curParticle->forceInternal + curParticle->forceExternal + curParticle->forceSurface) / curParticle->density;
 	}
