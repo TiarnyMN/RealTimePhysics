@@ -52,7 +52,7 @@
 WaterSim::WaterSim(void)
 {
 	RestDensity = 1000.0f;
-	ParticlesPerDimension = 25.0f;
+	ParticlesPerDimension = 3.0f;
 	ParticleCount = ParticlesPerDimension * ParticlesPerDimension * ParticlesPerDimension;
 
 	StiffnessConstant = 100.0f;

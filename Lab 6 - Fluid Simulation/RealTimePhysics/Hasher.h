@@ -15,3 +15,11 @@ public:
 		return first == second;
 	}
 };
+
+struct Capsule
+{
+	glm::vec3 startPoint;
+	glm::vec3 endPoint;
+	float radius;
+	glm::vec3 q;
+};

@@ -34,7 +34,59 @@ void FluidSim::InitialiseParticles(void)
 				particles.push_back(particle);
 			}
 
+	container = Capsule();
+	container.startPoint = glm::vec3(0.0f, -VerticalBounds * 0.5f, 0.0f);
+	container.endPoint = glm::vec3(0.0f, VerticalBounds * 0.5f, 0.0f);
+	container.radius = HorizontalBounds;
+
 	wallEnabled = true;
+}
+
+//Why is this broken...!?
+inline bool FluidSim::CalculateCapsuleCollision(Capsule* container, Particle* particle)
+{
+	float t = -glm::dot((container->startPoint - particle->position), (container->endPoint - container->startPoint) / glm::distance2(container->endPoint, container->startPoint));
+	
+	if(t > 0.0f)
+		return false;	//No collision
+
+	t = glm::min(1.0f, glm::max(0.0f, t));
+
+	container->q = container->startPoint + (container->endPoint - container->startPoint) * t;
+	glm::vec3 contactPoint = container->q + container->radius * ((particle->position - container->q) / glm::length(particle->position - container->q));
+
+	float penetrationDepth = glm::length(CalculateCapsuleFunc(container, particle));
+	glm::vec3 unitSurfaceNormal = glm::sign(CalculateCapsuleFunc(container, particle)) * ((container->q - particle->position) / glm::length(container->q - particle->position));
+
+	glm::vec3 relPos = particle->position - contactPoint;
+	float dotProd = glm::dot(relPos, unitSurfaceNormal);		//(x-p).n
+	float dotProd2 = glm::dot(unitSurfaceNormal, particle->velocity);		//(n.v)
+
+	float epsilon = 0.1f;	//A collision smoothing / buffer value, how close a particle can actually get to a plane before we consider it a collision.
+	float elasticity = 0.8f;	//Elasticity of surface, lower values = stronger frictional forces / less rebound.
+
+	if(dotProd < epsilon && dotProd2 < epsilon)
+	{
+		glm::vec3 vN = glm::dot(unitSurfaceNormal, particle->velocity) * unitSurfaceNormal;
+		glm::vec3 vT = particle->velocity - vN;
+		vT *= 0.75f;	//"Frictional" force
+
+		particle->velocity = vT - elasticity * vN;
+	}
+
+	//cout << penetrationDepth << " - ( " << unitSurfaceNormal.x << " - " << unitSurfaceNormal.y << " - " << unitSurfaceNormal.z << " ) - ( " << contactPoint.x << " - " << contactPoint.y << " - " << contactPoint.z << " )" << endl;
+	return true;
+}
+
+inline float FluidSim::CalculateCapsulePoint(Capsule* container, Particle* particle)
+{
+	float t = -glm::dot((container->startPoint - particle->position), (container->endPoint - container->startPoint) / glm::distance2(container->endPoint, container->startPoint));
+	return glm::min(1.0f, glm::max(0.0f, t));
+}
+
+inline float FluidSim::CalculateCapsuleFunc(Capsule* container, Particle* particle)
+{
+	return glm::length(container->q - particle->position) - container->radius;
 }
 
 inline float FluidSim::CalculateKernal(Particle* curParticle, Particle* compareParticle)
@@ -200,10 +252,14 @@ void FluidSim::Update(void)
 		curParticle->oldVelocity = newVel;
 	}
 
+	
+
 	for(int i = 0; i < ParticleCount; i++)
 	{
 		Particle* curParticle = particles[i];
-		if(curParticle->position.y < -HorizontalBounds && curParticle->velocity.y < 0.0f)
+		CalculateCapsuleCollision(&container, curParticle);
+
+		/*if(curParticle->position.y < -HorizontalBounds && curParticle->velocity.y < 0.0f)
 		{
 			curParticle->position.y = -HorizontalBounds;
 			curParticle->velocity.y = -curParticle->velocity.y * DampeningStrength;
@@ -240,7 +296,7 @@ void FluidSim::Update(void)
 			curParticle->position.z = HorizontalBounds; 
 			curParticle->velocity.z = -curParticle->velocity.z * DampeningStrength;
 			curParticle->oldVelocity.z = -curParticle->oldVelocity.z * DampeningStrength;
-		}
+		}*/
 	}
 }
 
@@ -267,7 +323,7 @@ void FluidSim::Render(GLuint shaderID)
 		float particleRenderSize = glm::pow((3.0f * particles[i]->mass) / (4.0f * glm::pi<float>() * particles[i]->density), 1.0f / 3.0f);	
 		//gluSphere(refSphere, particleRenderSize, 5, 5);
 
-		gluSphere(refSphere, particleRenderSize, 2, 2);
+		gluSphere(refSphere, particleRenderSize, 4, 4);
 
 	}
 }

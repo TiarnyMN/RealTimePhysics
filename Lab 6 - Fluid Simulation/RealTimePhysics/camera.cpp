@@ -13,7 +13,7 @@ Camera::Camera(void)
 	camNear = 0.1f;
 	camFar = 100000.0f;
 	camSpin = 0.0f;
-	distance = 6.0f;
+	distance = 10.0f;
 	verticalOffset = 5.0f;
 
 	speedConstant = 2.0f;
