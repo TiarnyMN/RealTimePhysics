@@ -78,7 +78,7 @@ void display(void)
 	glUniform3f(glGetUniformLocation(shaderID, "vColor"), 0.3f, 0.3f, 0.3f);	
 
 	glBegin(GL_QUADS);
-	glColor4f(0.4f, 0.4f, 0.4f, 1.0f);
+	glColor4f(0.7f, 0.7f, 0.7f, 1.0f);
 
 	for(int i = 0; i < planes.size(); i++)
 		planes[i]->Render();
@@ -108,8 +108,8 @@ void display(void)
 		ss << "0 ~ Default Mode" << endl;
 		ss << "1 ~ Show | 2 ~ Hide Surface Particles" << endl;
 		ss << "3 ~ Highlight Neighbours | - + ~ Change Highlight" << endl;
-		ss << "4 ~ Fat | 5 ~ Thin Inner Capsule" << endl;
-		ss << "6 ~ Tall | 7 ~ Short Inner Capsule" << endl;
+		ss << "4 ~ Thin | 5 ~ Fat Inner Capsule" << endl;
+		ss << "6 ~ Short | 7 ~ Tall Inner Capsule" << endl;
 	}
 
 	ss << endl << "] ~ Toggle Debug Information" << endl;

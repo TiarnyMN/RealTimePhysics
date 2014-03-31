@@ -65,16 +65,16 @@ bool FluidSim::HandleRegularInput(unsigned char curKey)
 			return true;
 
 		case '2':
-			showNeighbours = true;
-			showSurfaceParticles = false;
-			hideSurfaceParticles = false;			
-			return true;
-
-		case '3':
 			hideSurfaceParticles = true;
 			showSurfaceParticles = false;
 			showNeighbours = false;
 			return true;
+
+		case '3':
+			showNeighbours = true;
+			showSurfaceParticles = false;
+			hideSurfaceParticles = false;			
+			return true;		
 
 		case '4':
 			innerRadius = glm::max(innerRadius - 0.1f, 0.0f);
