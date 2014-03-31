@@ -45,6 +45,9 @@
     <ClInclude Include="WaterSim.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MucusSim.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -69,6 +72,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="WaterSim.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MucusSim.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

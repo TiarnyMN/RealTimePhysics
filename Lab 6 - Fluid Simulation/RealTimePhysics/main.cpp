@@ -1,5 +1,6 @@
 #include "shared.h"
 #include "WaterSim.h"
+#include "MucusSim.h"
 
 int prevFrameTimeSinceStart = 0;
 GLfloat elapsedTimeStep = 0.0f;
@@ -12,23 +13,36 @@ Shader lineShader;
 
 Camera particleCamera;
 
-WaterSim* fluidSimulation;
+FluidSim* fluidSimulation;
+FluidSim* mucusSim;
+FluidSim* waterSim;
 GLUquadricObj* refSphere;
+
+bool showDetailedDebug = true;
 
 void HandleRegularInput(unsigned char curKey, int x, int y)
 {
 	curKey = tolower(curKey);
-	//fluidSimulation.HandleRegularInput(curKey);
-	//switch(curKey)
-	//{
-	//	case ' ':
-	//		wallEnabled = false;
-	//		return;
+	if(!fluidSimulation->HandleRegularInput(curKey))
+	{
+		switch(curKey)
+		{
+			case '#':
+				particleCamera.spinEnabled = !particleCamera.spinEnabled;
+				break;
 
-	//	case 'a':
-	//		debuggingEnabled = !debuggingEnabled;
-	//		return;
-	//}
+			case '/':
+				if(fluidSimulation == waterSim)
+					fluidSimulation = mucusSim;
+				else
+					fluidSimulation = waterSim;
+				break;
+
+			case ']':
+				showDetailedDebug = !showDetailedDebug;
+				break;
+		}
+	}
 }
 
 void update(void)
@@ -39,7 +53,7 @@ void update(void)
 	prevFrameTimeSinceStart = timeSinceStart;
 
 	elapsedTimeStep = ((float)deltaTime / 1000.0f);
-	particleCamera.Update(elapsedTimeStep);
+	particleCamera.Update(elapsedTimeStep, fluidSimulation->container.centre);
 
 	fluidSimulation->Update();    
 	glutPostRedisplay();
@@ -50,15 +64,18 @@ void display(void)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
 
+	//Draw the planes.
+	int shaderID = planeShader.GetShaderID();
+	glUseProgram(shaderID);
+
 	glm::mat4 viewMat = particleCamera.GetViewMatrix();
 	glm::mat4 projMat = particleCamera.GetProjMatrix();
+	glm::mat4 transformMat = glm::translate(glm::vec3());
 
-	//Draw the planes.
-	int aID = planeShader.GetShaderID();
-	glUseProgram(aID);
-
-	glUniformMatrix4fv(glGetUniformLocation(aID, "camMat"), 1, GL_FALSE, glm::value_ptr(viewMat));
-	glUniformMatrix4fv(glGetUniformLocation(aID, "perMat"), 1, GL_FALSE, glm::value_ptr(projMat));
+	glUniformMatrix4fv(glGetUniformLocation(shaderID, "mView"), 1, GL_FALSE, glm::value_ptr(viewMat));
+	glUniformMatrix4fv(glGetUniformLocation(shaderID, "mProjection"), 1, GL_FALSE, glm::value_ptr(projMat));
+	glUniformMatrix4fv(glGetUniformLocation(shaderID, "mTransform"), 1, GL_FALSE, glm::value_ptr(transformMat));
+	glUniform3f(glGetUniformLocation(shaderID, "vColor"), 0.3f, 0.3f, 0.3f);	
 
 	glBegin(GL_QUADS);
 	glColor4f(0.4f, 0.4f, 0.4f, 1.0f);
@@ -68,19 +85,48 @@ void display(void)
 
 	glEnd();
 
-	GLuint shaderID = sphereShader.GetShaderID();
-	glUseProgram(shaderID);
+	//Draw everything to do with the fluid simulation.
+	fluidSimulation->Render(sphereShader.GetShaderID(), planeShader.GetShaderID(), viewMat, projMat);
 
-	glm::mat4 finalTransform;
-	int transformLoc = glGetUniformLocation(shaderID, "mTransform");
-	int colourLoc = glGetUniformLocation(shaderID, "vColor");
+	#pragma region Print Debug Information
+	stringstream ss;
+	ss << "Fluid Simulation - Smoothed Particle Hydrodynamics" << endl;
 
-	glUniformMatrix4fv(glGetUniformLocation(shaderID, "mView"), 1, GL_FALSE, glm::value_ptr(viewMat));
-	glUniformMatrix4fv(glGetUniformLocation(shaderID, "mProjection"), 1, GL_FALSE, glm::value_ptr(projMat));
+	if(fluidSimulation == waterSim)
+		ss << "Fluid Type: Water" << endl;
+	else
+		ss << "Fluid Type: Mucus" << endl;
+
+	if(showDetailedDebug)
+	{
+		fluidSimulation->PrintDebug(ss);
+
+		ss << endl << "CONTROLS" << endl;
+		ss << "# ~ Spin Camera | / ~ Swap Fluid Type" << endl;
+		ss << "WASD ~ Move Capsule | IK ~ Rotate Capsule" << endl;
+		ss << "SPACE ~ Drop Capsule" << endl;
+		ss << "0 ~ Default Mode" << endl;
+		ss << "1 ~ Show | 2 ~ Hide Surface Particles" << endl;
+		ss << "3 ~ Highlight Neighbours | - + ~ Change Highlight" << endl;
+		ss << "4 ~ Fat | 5 ~ Thin Inner Capsule" << endl;
+		ss << "6 ~ Tall | 7 ~ Short Inner Capsule" << endl;
+	}
+
+	ss << endl << "] ~ Toggle Debug Information" << endl;
+
+	glActiveTexture(GL_TEXTURE0);
+	glDisable(GL_TEXTURE_2D);
+
+	string text = ss.str();
+	glUseProgram(0);
+	glColor3f(1.0f, 1.0f, 1.0f);
+	glRasterPos2f(-0.99f, 0.95f);	
+	glutBitmapString(GLUT_BITMAP_HELVETICA_12, (const unsigned char*)text.c_str());
 	
-	glUniformMatrix4fv(glGetUniformLocation(shaderID, "gWVP"), 1, GL_FALSE, glm::value_ptr(projMat * viewMat));
+	glActiveTexture(GL_TEXTURE0);
+	glEnable(GL_TEXTURE_2D);
+	#pragma endregion
 
-	fluidSimulation->Render(shaderID);
 	glutSwapBuffers();
 }
 
@@ -99,7 +145,9 @@ void initialise(void)
 	flatPlane->GenerateVertices(glm::vec3(0.0f, -20.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	planes.push_back(flatPlane);
 
-	fluidSimulation = new WaterSim();
+	mucusSim = new MucusSim();
+	waterSim = new WaterSim();
+	fluidSimulation = waterSim;
 
 	refSphere = gluNewQuadric();
 	gluQuadricTexture(refSphere, TRUE);
@@ -110,11 +158,6 @@ void initialise(void)
 void InitialiseCallbacks()
 {
 	glutKeyboardFunc(HandleRegularInput);
-	//glutIdleFunc(UpdateScene);						// Tell glut where the update function is, to execute when system is idle (after drawing completed).
-	//glutDisplayFunc(Render);						// Tell glut where the display function is
-	//glutMouseFunc(MouseCB);
-	//glutMotionFunc(MouseMotionCB);
-	//glutPassiveMotionFunc(MousePassiveCB);
 }
 
 int main(int argc, char** argv)
@@ -132,7 +175,7 @@ int main(int argc, char** argv)
 
 	glutIdleFunc(update);							// Tell glut where the update function is, to execute when system is idle (after drawing completed).
 	glutDisplayFunc(display);						// Tell glut where the display function is
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClearColor(0.33f, 0.66f, 0.95f, 1.0f);
 
 	InitialiseCallbacks();
 

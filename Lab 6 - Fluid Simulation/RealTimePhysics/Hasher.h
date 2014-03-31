@@ -20,6 +20,19 @@ struct Capsule
 {
 	glm::vec3 startPoint;
 	glm::vec3 endPoint;
+
+	float length;
+	glm::vec3 centre;
 	float radius;
+
 	glm::vec3 q;
+
+	glm::vec3 rotation;
+
+	void CalculateCapsulePosition(glm::vec3 rot)
+	{
+		rotation += rot;
+		startPoint = centre - glm::vec3(glm::sin(rotation.x) * length, glm::cos(rotation.x) * length, 0.0f);
+		endPoint = centre + glm::vec3(glm::sin(rotation.x) * length, glm::cos(rotation.x) * length, 0.0f);
+	}
 };

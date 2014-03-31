@@ -2,17 +2,21 @@
 #include "shared.h";
 #include <map>
 #include <unordered_map>
+#include <gtx\fast_exponential.hpp>
 #include "Hasher.h"
-
-
+#include "glm/gtx/euler_angles.hpp"
 
 class FluidSim
 {
 public:
 	virtual void Update(void);
-	virtual void Render(GLuint shaderID);
+	virtual void Render(GLuint capsuleShaderID, GLuint particleShaderID, glm::mat4 &viewMat, glm::mat4 &projMat);
 
 	vector<Particle*> GetParticles(void);
+
+	bool HandleRegularInput(unsigned char curKey);
+	void PrintDebug(std::stringstream& ss);
+	Capsule container;
 
 private:
 	float CalculateKernal(Particle* curParticle, Particle* compareParticle);
@@ -21,7 +25,8 @@ private:
 	glm::vec3 CalculatePressureKernal(glm::vec3 &r, float &rLength);
 	float CalculateViscosityKernal(glm::vec3 &r, float &rLength);
 
-	bool CalculateCapsuleCollision(Capsule* container, Particle* particle);
+	bool CalculateInternalCapsuleCollision(Capsule* container, Particle* particle);
+	bool CalculateExternalCapsuleCollision(Capsule* container, Particle* particle);
 	float CalculateCapsulePoint(Capsule* container, Particle* particle);
 	float CalculateCapsuleFunc(Capsule* container, Particle* particle);
 
@@ -48,7 +53,7 @@ protected:
 
 	float BoxVolume;
 
-	float DampeningStrength;
+	float DampeningStrength, FrictionStrength;
 
 	float ParticleMass;
 
@@ -57,11 +62,18 @@ protected:
 
 	float Sigma;
 
+	glm::vec3 Color;
+
 	bool wallEnabled;
 
 	float KernelPow9, KernelPow2, KernelPow6;
 	float DefaultKernelConstant, NormalKernelConstant, SurfaceKernelConstant, PressureKernelConstant, ViscosityKernelConstant;
 
-	Capsule container;
+	glm::vec3 containerVelocity;
+	bool crashCapsule, brokenCapsule, showSurfaceParticles, hideSurfaceParticles, showNeighbours;
+	float innerRadius, innerLength;
+	int particleHighlightID;
+	
+	Capsule innerContainer;
 };
 
